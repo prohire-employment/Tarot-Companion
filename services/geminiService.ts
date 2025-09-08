@@ -1,188 +1,159 @@
-import { GoogleGenAI, Type } from '@google/genai';
-import { DrawnCard, AlmanacInfo, Interpretation } from '../types';
+import { GoogleGenAI, Type, Content, Part } from "@google/genai";
+import type { DrawnCard, Spread, TarotCard, AlmanacInfo } from '../types';
 
-// Custom Error for better UI feedback
-class GeminiServiceError extends Error {
-  public userFriendlyMessage: string;
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-  constructor(message: string, userFriendlyMessage: string) {
-    super(message);
-    this.name = 'GeminiServiceError';
-    this.userFriendlyMessage = userFriendlyMessage;
-  }
-}
+export const generateCardImage = async (card: TarotCard): Promise<string> => {
+  const prompt = `A mystical tarot card illustration of '${card.name}'. 
+Style: ethereal, magical realism, detailed linework, art nouveau influences, rich symbolism related to its meaning. 
+Keywords: ${card.uprightKeywords.join(', ')}. 
+The image should be vertical. Do not include any text, letters, or borders on the card art itself.`;
 
-const handleApiError = (error: unknown, context: string): GeminiServiceError => {
-  console.error(`Error in ${context}:`, error);
-
-  let userFriendlyMessage = 'An unexpected error occurred while communicating with the AI service. Please try again later.';
-  
-  if (error instanceof Error) {
-    const errorMessage = error.message.toLowerCase();
-    if (errorMessage.includes('api key not valid') || errorMessage.includes('permission denied') || errorMessage.includes('api_key')) {
-        userFriendlyMessage = 'The connection to the AI service failed due to an authentication error. Please ensure the API key is configured correctly.';
-    } else if (errorMessage.includes('failed to fetch') || errorMessage.includes('network')) {
-        userFriendlyMessage = 'A network error occurred. Please check your internet connection and try again.';
-    } else if (errorMessage.includes('deadline exceeded') || errorMessage.includes('timeout')) {
-        userFriendlyMessage = 'The request to the AI service timed out. Please try again.';
-    } else if (errorMessage.includes('resource exhausted') || errorMessage.includes('429')) {
-         userFriendlyMessage = 'The AI service is currently busy or rate limits have been exceeded. Please try again in a few moments.';
-    } else if (errorMessage.includes('500') || errorMessage.includes('internal')) {
-        userFriendlyMessage = 'The AI service encountered an internal error. Please try again later.'
-    }
-  }
-  
-  return new GeminiServiceError(error instanceof Error ? error.message : 'Unknown error', userFriendlyMessage);
-};
-
-
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  // This log helps developers, but the UI will handle the resulting errors gracefully for the user.
-  console.error("CRITICAL: API_KEY environment variable not set. API calls will fail.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
-
-const checkApiKey = () => {
-    if (!API_KEY) {
-        throw new GeminiServiceError(
-            "API_KEY environment variable is not set.",
-            "The connection to the AI service is currently unavailable. Please try again later."
-        );
-    }
-};
-
-const interpretationSchema = {
-  type: Type.OBJECT,
-  properties: {
-    outer: {
-      type: Type.STRING,
-      description: 'The "Outer" meaning: The traditional, external, or worldly interpretation of the spread. Synthesize the cards to describe events, actions, and the material situation.'
-    },
-    inner: {
-      type: Type.STRING,
-      description: 'The "Inner" meaning: The psychological, archetypal, or spiritual interpretation. Synthesize the cards to describe internal states, personal growth, and subconscious influences.'
-    },
-    whispers: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.STRING,
-      },
-      description: 'Three "Whispers": Gentle, evocative questions or prompts for reflection that connect the spread\'s overall message to the user\'s personal life and the current almanac context.'
-    }
-  },
-  required: ['outer', 'inner', 'whispers']
-};
-
-export const getSpreadInterpretation = async (
-  drawnCards: DrawnCard[],
-  almanac: AlmanacInfo,
-  spreadName: string,
-  question?: string,
-): Promise<Interpretation> => {
-  checkApiKey();
-  
-  const cardsDetails = drawnCards.map(dc => {
-    const orientation = dc.reversed ? 'Reversed' : 'Upright';
-    const keywords = (dc.reversed ? dc.card.reversedKeywords : dc.card.uprightKeywords) || [];
-    let cardLine = `- ${dc.position}: ${dc.card.name} (${orientation})`;
-    if (keywords.length > 0) {
-      cardLine += ` | Keywords to consider: ${keywords.join(', ')}`;
-    }
-    return cardLine;
-  }).join('\n');
-
-  const contextInstruction = `Integrate the following spiritual and natural context as a thematic lens for the reading. For instance, a "New Moon" might suggest new beginnings, while "Autumn" could imply harvest or letting go.
-- Lunar Phase: ${almanac.lunarPhase}
-- Season: ${almanac.season}
-${almanac.holiday ? `- Special Day: ${almanac.holiday}` : ''}`;
-
-  const prompt = `
-    As a wise, empathetic Tarot reader, provide a deep, layered, and synthesized interpretation for the following spread. Your tone must be calm, sacred, and encouraging, like a personal journal companion, avoiding clichés. Weave the meanings of all cards into a single, coherent narrative that directly addresses the user's focus. Use the provided keywords as inspiration for your interpretation.
-
-    **User's Focus:** ${question ? `"${question}"` : 'A general reading.'}
-    
-    **Spread:** ${spreadName}
-    
-    **Cards Drawn:**
-    ${cardsDetails}
-    
-    **Thematic Context:**
-    ${contextInstruction}
-
-    Provide your interpretation in the required JSON format. The layers should be distinct:
-    - **Outer:** Focus on the tangible, worldly events and actions.
-    - **Inner:** Explore the psychological, emotional, and spiritual landscape.
-    - **Whispers:** Craft three gentle, reflective questions that connect the reading to the user's life and the thematic context.
-  `;
-  
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
+    const response = await ai.models.generateImages({
+      model: 'imagen-4.0-generate-001',
+      prompt: prompt,
       config: {
-        responseMimeType: "application/json",
-        responseSchema: interpretationSchema,
-        temperature: 0.8,
+        numberOfImages: 1,
+        outputMimeType: 'image/png',
+        aspectRatio: '3:4',
       },
     });
 
-    const jsonText = response.text.trim();
-    let interpretation: Partial<Interpretation>;
-
-    try {
-      interpretation = JSON.parse(jsonText);
-    } catch (parseError) {
-      console.error("Failed to parse JSON response:", jsonText);
-      throw new GeminiServiceError(
-        "Received a malformed interpretation from the AI.",
-        "The AI returned a response in an unexpected format. This may be a temporary issue. Please try your reading again."
-      );
-    }
-
-    if (typeof interpretation.outer === 'string' && typeof interpretation.inner === 'string' && Array.isArray(interpretation.whispers)) {
-      return interpretation as Interpretation;
+    if (response.generatedImages && response.generatedImages.length > 0) {
+      const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+      return `data:image/png;base64,${base64ImageBytes}`;
     } else {
-      console.error("Invalid JSON structure received:", interpretation);
-       throw new GeminiServiceError(
-        "Received an incomplete interpretation from the AI.",
-        "The AI returned an incomplete response. Please try your reading again."
-      );
+      throw new Error("No image was generated by the API.");
     }
-    
   } catch (error) {
-    if (error instanceof GeminiServiceError) throw error;
-    throw handleApiError(error, 'getSpreadInterpretation');
+    console.error(`Error generating image for ${card.name}:`, error);
+    throw new Error(`Failed to generate image for ${card.name}.`);
   }
 };
 
-export const identifyCardFromImage = async (base64Image: string): Promise<string | null> => {
-    checkApiKey();
-    const imagePart = {
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: base64Image,
+export const identifyCardFromImage = async (base64Image: string): Promise<string> => {
+  const imagePart: Part = {
+    inlineData: {
+      mimeType: 'image/jpeg', // assuming jpeg, but could be png
+      data: base64Image.split(',')[1], // remove the "data:image/jpeg;base64," part
+    },
+  };
+  const textPart: Part = {
+    text: "Identify the tarot card in this image. Respond with ONLY the name of the card. For example: 'The Fool'. Do not add any other text or explanation.",
+  };
+
+  const contents: Content = { parts: [imagePart, textPart] };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents,
+    });
+    return response.text.trim();
+  } catch (error) {
+    console.error("Error identifying card from image:", error);
+    throw new Error("Failed to identify the card from the provided image.");
+  }
+};
+
+
+function formatCardsForPrompt(drawnCards: DrawnCard[]): string {
+  return drawnCards.map((c, i) => 
+    `Card ${i + 1}: ${c.card.name} (${c.isReversed ? 'Reversed' : 'Upright'})`
+  ).join('\n');
+}
+
+export const getInterpretation = async (
+  drawnCards: DrawnCard[],
+  spread: Spread,
+  question: string,
+  almanacInfo: AlmanacInfo
+): Promise<{ overall: string; cards: { cardName: string; meaning: string }[] }> => {
+
+  const cardDetails = formatCardsForPrompt(drawnCards);
+  const positionDetails = spread.positions.map((p, i) => `Position ${i+1} (${p.title}): ${p.description}`).join('\n');
+  const userQuestion = question ? `The user's question is: "${question}"` : "The user has not provided a specific question; this is a general reading.";
+
+  const almanacContext = `
+**Contextual Information:**
+- **Lunar Phase:** ${almanacInfo.lunarPhase}
+- **Season:** ${almanacInfo.season}
+- **Holiday/Sabbat:** ${almanacInfo.holiday || 'None'}
+
+Please subtly weave these contextual elements into the interpretation where they feel relevant to add depth and nuance.
+`;
+
+  const contents = `
+You are a wise and compassionate Tarot guide. Your tone should be empowering, insightful, and slightly mystical, as if sharing sacred knowledge with a trusted friend. Avoid overly dramatic or fortune-teller language. Focus on providing gentle guidance, highlighting opportunities for growth, and framing challenges as lessons. The interpretation should feel personal, supportive, and deeply connected to the cards' symbolism.
+
+**Reading Details:**
+- **Spread:** ${spread.name}
+- **Question/Focus:** ${userQuestion}
+${almanacContext}
+**Cards Drawn:**
+${cardDetails}
+
+**Spread Positions:**
+${positionDetails}
+
+Please provide an interpretation in JSON format. The JSON object should have two keys:
+1.  "overall": A summary of the reading's main message (2-3 sentences).
+2.  "cards": An array of objects, one for each card drawn. Each object should have:
+    - "cardName": The name of the card (e.g., "The Fool").
+    - "meaning": An interpretation of that card in its specific position within the spread, considering the user's question, the other cards, and the contextual information provided. Keep this to 2-4 sentences.
+
+Do not include any introductory or concluding text outside of the JSON structure.
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            overall: {
+              type: Type.STRING,
+              description: "A summary of the reading's main message."
+            },
+            cards: {
+              type: Type.ARRAY,
+              description: "An array of interpretations for each card drawn.",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  cardName: {
+                    type: Type.STRING,
+                    description: "The name of the card."
+                  },
+                  meaning: {
+                    type: Type.STRING,
+                    description: "The interpretation of the card in its position."
+                  }
+                },
+                required: ["cardName", "meaning"]
+              }
+            }
+          },
+          required: ["overall", "cards"]
+        },
       },
-    };
+    });
 
-    const textPart = {
-      text: "Identify the primary Tarot card in this image. Respond with only the card's name (e.g., 'The Fool', 'Ten of Wands'). If no card is clearly identifiable, respond with 'Unknown'.",
-    };
+    const jsonText = response.text;
+    const result = JSON.parse(jsonText);
 
-    try {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: { parts: [imagePart, textPart] },
-        });
-
-        const cardName = response.text.trim();
-        if (cardName && cardName.toLowerCase() !== 'unknown') {
-            return cardName;
-        }
-        return null;
-    } catch (error) {
-        throw handleApiError(error, 'identifyCardFromImage');
+    if (result && result.overall && Array.isArray(result.cards)) {
+      return result;
+    } else {
+      throw new Error("Invalid JSON structure received from API.");
     }
+
+  } catch (error) {
+    console.error("Error getting interpretation from Gemini API:", error);
+    throw new Error("The Tarot spirits are busy. Please try again in a moment.");
+  }
 };

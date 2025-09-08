@@ -1,10 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { SpeechRecognition } from '../types';
+import type { SpeechRecognition, SpeechRecognitionErrorEvent } from '../types';
 
 interface UseSpeechRecognitionProps {
   onResult: (transcript: string) => void;
   onError: (error: string) => void;
 }
+
+interface CustomWindow extends Window {
+  SpeechRecognition?: new () => SpeechRecognition;
+  webkitSpeechRecognition?: new () => SpeechRecognition;
+}
+declare const window: CustomWindow;
+
 
 export const useSpeechRecognition = ({ onResult, onError }: UseSpeechRecognitionProps) => {
   const [isListening, setIsListening] = useState(false);
@@ -13,7 +20,6 @@ export const useSpeechRecognition = ({ onResult, onError }: UseSpeechRecognition
   useEffect(() => {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
-      // Don't call onError here, let the component decide when to message the user
       return;
     }
 
@@ -26,10 +32,30 @@ export const useSpeechRecognition = ({ onResult, onError }: UseSpeechRecognition
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       onResult(transcript);
+      setIsListening(false);
     };
+
     recognition.onend = () => setIsListening(false);
-    recognition.onerror = (event) => {
-      onError(`Speech recognition error: ${event.error}`);
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      let errorMessage = `Speech recognition error: ${event.error}`;
+      switch (event.error) {
+        case 'not-allowed':
+          errorMessage = "Microphone access denied. Please enable it in your browser settings.";
+          break;
+        case 'no-speech':
+          errorMessage = "No speech was detected. Please try again.";
+          break;
+        case 'network':
+          errorMessage = "A network error occurred. Please check your connection.";
+          break;
+        case 'aborted':
+           setIsListening(false);
+           return;
+        default:
+          break;
+      }
+      onError(errorMessage);
       setIsListening(false);
     };
 
@@ -45,12 +71,23 @@ export const useSpeechRecognition = ({ onResult, onError }: UseSpeechRecognition
 
     if (isListening) {
       recognition.stop();
-      setIsListening(false);
     } else {
-      recognition.start();
-      setIsListening(true);
+      try {
+        recognition.start();
+        setIsListening(true);
+      } catch (e) {
+        // Catch immediate errors from start(), e.g., if already started
+        onError("Could not start speech recognition. Please try again.");
+        setIsListening(false);
+      }
     }
   }, [isListening, onError]);
+  
+  const stopListening = useCallback(() => {
+    if (isListening && recognitionRef.current) {
+        recognitionRef.current.stop();
+    }
+  }, [isListening]);
 
-  return { isListening, toggleListening, isSupported: !!recognitionRef.current };
+  return { isListening, toggleListening, stopListening, isSupported: !!recognitionRef.current };
 };

@@ -7,8 +7,9 @@ import HomeView from './components/views/HomeView';
 import JournalView from './components/views/JournalView';
 import CalendarView from './components/views/CalendarView';
 import SettingsView from './components/views/SettingsView';
+import LibraryView from './components/views/LibraryView';
 import Toast from './components/Toast';
-import { HomeIcon, JournalIcon, CalendarIcon, SettingsIcon } from './components/icons/NavIcons';
+import { HomeIcon, JournalIcon, CalendarIcon, SettingsIcon, LibraryIcon } from './components/icons/NavIcons';
 
 const App: React.FC = () => {
   const { entries } = useJournalStore();
@@ -52,6 +53,8 @@ const App: React.FC = () => {
         return <JournalView />;
       case 'calendar':
         return <CalendarView />;
+      case 'library':
+        return <LibraryView />;
       case 'settings':
         return <SettingsView />;
       default:
@@ -63,6 +66,7 @@ const App: React.FC = () => {
     { view: 'home', label: 'Home', icon: HomeIcon },
     { view: 'journal', label: 'Journal', icon: JournalIcon },
     { view: 'calendar', label: 'Calendar', icon: CalendarIcon },
+    { view: 'library', label: 'Library', icon: LibraryIcon },
     { view: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 

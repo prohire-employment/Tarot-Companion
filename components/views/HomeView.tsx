@@ -1,474 +1,271 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import type { JournalEntry, DrawnCard, Interpretation, TarotCard, Spread, ManualCardState } from '../../types';
-import { useAlmanac } from '../../hooks/useAlmanac';
-import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+import React, { useState, useMemo, useReducer, useEffect } from 'react';
 import { useJournalStore } from '../../store/journalStore';
-import { useSettingsStore } from '../../store/settingsStore';
 import { useUiStore } from '../../store/uiStore';
-import { useSpreadStore } from '../../store/spreadStore';
-import { TAROT_DECK } from '../../data/cards';
-import { SPREADS as defaultSpreads } from '../../data/spreads';
-import { getSpreadInterpretation, identifyCardFromImage } from '../../services/geminiService';
-import Spinner from '../Spinner';
-import ReadingSetup from '../home/ReadingSetup';
-import InputMethodSelector from '../home/InputMethodSelector';
+import { SPREADS } from '../../data/spreads';
+import { getInterpretation, generateCardImage } from '../../services/geminiService';
+import type { Spread, DrawnCard, JournalEntry, ReadingState, ReadingAction } from '../../types';
 import ReadingResult from '../home/ReadingResult';
-import CameraModal from '../home/CameraModal';
-import SpreadDetailModal from '../home/SpreadDetailModal';
+import Spinner from '../Spinner';
+import { useAlmanac } from '../../hooks/useAlmanac';
+import { useCardImageStore } from '../../store/cardImageStore';
+import CustomReadingFlow from '../home/CustomReadingFlow';
 import DailyDrawModal from '../home/DailyDrawModal';
-import CardBack from '../CardBack';
+import { TAROT_DECK } from '../../data/cards';
+import { useSettingsStore } from '../../store/settingsStore';
 
-const findCardByName = (name: string): TarotCard | undefined => {
-  if (!name) return undefined;
-  const normalizedName = name.toLowerCase().trim().replace(/[.,]/g, '');
-  return TAROT_DECK.find(c =>
-    c.name.toLowerCase().replace(/[.,]/g, '') === normalizedName
-  );
+const initialState: ReadingState = {
+    phase: 'dashboard',
+    drawnCards: [],
+    interpretation: null,
+    spread: null,
+    question: '',
+    error: null,
 };
 
+function readingReducer(state: ReadingState, action: ReadingAction): ReadingState {
+    switch (action.type) {
+        case 'START_READING':
+            return {
+                ...initialState,
+                phase: 'generatingImages',
+                drawnCards: action.payload.cards,
+                spread: action.payload.spread,
+                question: action.payload.question,
+            };
+        case 'IMAGE_GENERATION_SUCCESS':
+            return {
+                ...state,
+                phase: 'loading',
+                drawnCards: action.payload.cardsWithImages,
+                error: null,
+            };
+        case 'IMAGE_GENERATION_FAILURE':
+            return { ...state, phase: 'imageError', error: action.payload.error };
+        case 'INTERPRETATION_SUCCESS':
+            return { ...state, phase: 'result', interpretation: action.payload.interpretation, error: null };
+        case 'INTERPRETATION_FAILURE':
+            return { ...state, phase: 'interpretationError', error: action.payload.error };
+        case 'RETRY_IMAGE_GENERATION':
+             return { ...state, phase: 'generatingImages', error: null };
+        case 'CONTINUE_WITHOUT_ART':
+            return { ...state, phase: 'loading', error: null };
+        case 'RESET':
+            return initialState;
+        default:
+            return state;
+    }
+}
+
 const HomeView: React.FC = () => {
-  const { settings } = useSettingsStore();
-  const { entries, addEntry } = useJournalStore();
-  const { showToast, setActiveView } = useUiStore();
-  const { customSpreads } = useSpreadStore();
+    // Stores & Hooks
+    const { entries, addEntry } = useJournalStore();
+    const { imageCache, addImageToCache } = useCardImageStore();
+    const { showToast, setActiveView } = useUiStore();
+    const { settings } = useSettingsStore();
+    const almanacInfo = useAlmanac();
+    const [state, dispatch] = useReducer(readingReducer, initialState);
 
-  const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
-  const [interpretation, setInterpretation] = useState<Interpretation | null>(null);
-  const [impression, setImpression] = useState('');
-  const [question, setQuestion] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const almanac = useAlmanac();
+    // Local UI State
+    const [isDailyDrawModalOpen, setIsDailyDrawModalOpen] = useState(false);
+    const [isCustomReadingModalOpen, setIsCustomReadingModalOpen] = useState(false);
+    
+    // Memos
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const entryForToday = useMemo(() => entries.find(e => e.dateISO === todayISO), [entries, todayISO]);
 
-  const [isSpreadDetailModalOpen, setIsSpreadDetailModalOpen] = useState(false);
-  const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
-  const [dailyDrawData, setDailyDrawData] = useState<{ drawnCard: DrawnCard; interpretation: Interpretation } | null>(null);
+    // Async Effects for State Machine
+    useEffect(() => {
+        const processImageGeneration = async (cards: DrawnCard[]) => {
+            try {
+                const cardsWithImages: DrawnCard[] = [];
+                for (const drawnCard of cards) {
+                    let imageUrl = imageCache[drawnCard.card.id];
+                    if (!imageUrl) {
+                        imageUrl = await generateCardImage(drawnCard.card);
+                        addImageToCache(drawnCard.card.id, imageUrl);
+                    }
+                    cardsWithImages.push({ ...drawnCard, imageUrl });
+                }
+                dispatch({ type: 'IMAGE_GENERATION_SUCCESS', payload: { cardsWithImages } });
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'An unknown error occurred while creating card art.';
+                dispatch({ type: 'IMAGE_GENERATION_FAILURE', payload: { error: message } });
+            }
+        };
 
+        const processInterpretation = async (cards: DrawnCard[], spread: Spread, question: string) => {
+            try {
+                const result = await getInterpretation(cards, spread, question, almanacInfo);
+                dispatch({ type: 'INTERPRETATION_SUCCESS', payload: { interpretation: result } });
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+                dispatch({ type: 'INTERPRETATION_FAILURE', payload: { error: message } });
+            }
+        };
 
-  const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const dailyDrawEntryToday = useMemo(() => (
-      entries.find(e => e.dateISO === todayISO && e.drawnCards.length === 1 && e.drawnCards[0].position === 'Card of the Day')
-  ), [entries, todayISO]);
-
-
-  const availableDeck = useMemo(() => {
-    switch (settings.deckType) {
-      case 'major':
-        return TAROT_DECK.filter(c => c.arcana === 'Major');
-      case 'minor':
-        return TAROT_DECK.filter(c => c.arcana === 'Minor');
-      case 'full':
-      default:
-        return TAROT_DECK;
-    }
-  }, [settings.deckType]);
-
-  const allSpreads = useMemo(() => 
-    [...defaultSpreads, ...customSpreads].sort((a,b) => a.cardCount - b.cardCount || a.name.localeCompare(b.name)), 
-    [customSpreads]
-  );
-
-  const availableSpreads = useMemo(() => {
-    return allSpreads.filter(s => s.cardCount <= availableDeck.length);
-  }, [availableDeck, allSpreads]);
-
-  const [selectedSpreadId, setSelectedSpreadId] = useState<string>(availableSpreads[0].id);
-  
-  useEffect(() => {
-    if (!availableSpreads.find(s => s.id === selectedSpreadId)) {
-      setSelectedSpreadId(availableSpreads[0].id);
-    }
-  }, [availableSpreads, selectedSpreadId]);
-  
-  const selectedSpread = useMemo(() => availableSpreads.find(s => s.id === selectedSpreadId)!, [selectedSpreadId, availableSpreads]);
-  
-  const [manualCardState, setManualCardState] = useState<ManualCardState[]>([]);
-  
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const resetState = useCallback(() => {
-    setDrawnCards([]);
-    setInterpretation(null);
-    setImpression('');
-    setTags([]);
-    setError(null);
-    setIsLoading(false);
-    setLoadingMessage('');
-  }, []);
-
-  useEffect(() => {
-    resetState();
-    if (availableDeck.length > 0 && selectedSpread) {
-      setManualCardState(
-        Array(selectedSpread.cardCount).fill(null).map(() => ({
-          cardId: availableDeck[0].id,
-          reversed: false,
-        }))
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSpreadId, availableDeck, resetState]);
-  
-  // This effect triggers when cards are drawn and ready for interpretation.
-  useEffect(() => {
-    if (drawnCards.length > 0 && interpretation === null && !isLoading && !error) {
-      let isCancelled = false;
-
-      const performReading = async () => {
-        try {
-          const interpretationResult = await getSpreadInterpretation(drawnCards, almanac, selectedSpread.name, question);
-          if (isCancelled) return;
-          setInterpretation(interpretationResult);
-        } catch (err) {
-          if (!isCancelled) {
-            // The custom error from GeminiService has a `userFriendlyMessage` property
-            const message = (err instanceof Error && 'userFriendlyMessage' in err)
-              ? (err as any).userFriendlyMessage
-              : 'An unexpected error occurred during the reading.';
-            setError(message);
-            // Keep drawn cards visible even if interpretation fails.
-          }
+        if (state.phase === 'generatingImages') {
+            processImageGeneration(state.drawnCards);
+        } else if (state.phase === 'loading' && state.spread) {
+            processInterpretation(state.drawnCards, state.spread, state.question);
+        } else if (state.phase === 'interpretationError' && state.error) {
+            showToast(`Error: ${state.error}`);
+            dispatch({ type: 'RESET' });
         }
-      };
-
-      performReading();
-      return () => { isCancelled = true; };
-    }
-  }, [drawnCards, interpretation, isLoading, error, selectedSpread.name, almanac, question]);
+    }, [state.phase, state.drawnCards, state.spread, state.question, state.error, imageCache, addImageToCache, almanacInfo, showToast]);
 
 
-  const handleDigitalDraw = useCallback(() => {
-    if (selectedSpread.cardCount > availableDeck.length) {
-      setError(`The selected deck is too small for a "${selectedSpread.name}" spread.`);
-      return;
-    }
-    resetState();
-    setIsLoading(true);
-    setLoadingMessage('Shuffling the deck...');
-
-    setTimeout(() => {
-      const deckCopy = [...availableDeck];
-      const cards: DrawnCard[] = [];
-      for (let i = 0; i < selectedSpread.cardCount; i++) {
-        if (deckCopy.length === 0) break;
-        const randomIndex = Math.floor(Math.random() * deckCopy.length);
-        const card = deckCopy.splice(randomIndex, 1)[0];
-        cards.push({
-          card,
-          reversed: settings.includeReversals && Math.random() < 0.3,
-          position: selectedSpread.positions[i].title,
-        });
-      }
-      setDrawnCards(cards);
-      setIsLoading(false);
-    }, 1000);
-  }, [availableDeck, resetState, selectedSpread, settings.includeReversals]);
-  
-  const handleManualDraw = useCallback(() => {
-    resetState();
-    const cards: DrawnCard[] = manualCardState.map((state, i) => {
-      const card = availableDeck.find(c => c.id === state.cardId)!;
-      return {
-        card,
-        reversed: state.reversed,
-        position: selectedSpread.positions[i].title,
-      };
-    });
-    setDrawnCards(cards);
-  }, [availableDeck, manualCardState, resetState, selectedSpread.positions]);
-
-  const processImage = useCallback(async (base64: string) => {
-    resetState();
-    setIsLoading(true);
-    setLoadingMessage('Identifying your card...');
-    try {
-      const cardName = await identifyCardFromImage(base64);
-      if (cardName) {
-        const card = findCardByName(cardName);
-        if (card) {
-          setDrawnCards([{
-            card,
-            reversed: false, // Photo identification assumes upright
-            position: selectedSpread.positions[0].title,
-          }]);
-        } else {
-          setError(`Identified "${cardName}", but it's not in the deck.`);
+    const startReading = (cards: DrawnCard[], spread: Spread, question: string) => {
+        if (cards.length === 0 || cards.some(c => !c.card)) {
+            showToast("Not all cards were selected for the reading.");
+            return;
         }
-      } else {
-        setError("Could not identify a card in the image. Please try again.");
-      }
-    } catch (err) {
-      const message = (err instanceof Error && 'userFriendlyMessage' in err)
-        ? (err as any).userFriendlyMessage
-        : 'An unexpected error occurred while identifying the card.';
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [resetState, selectedSpread.positions]);
-
-  const handleFileSelected = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        const base64 = dataUrl.split(',')[1];
-        processImage(base64);
-      };
-      reader.readAsDataURL(file);
-    }
-  }, [processImage]);
-
-  const openCamera = useCallback(async () => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          setIsCameraOpen(true);
-        }
-      } catch (err) {
-        setError("Could not access camera. Please grant permission and try again.");
-      }
-    } else {
-      setError("Camera access is not supported by your browser.");
-    }
-  }, []);
-  
-  const closeCamera = useCallback(() => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-    setIsCameraOpen(false);
-  }, []);
-
-  const handleTakePicture = useCallback(() => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
-        processImage(base64);
-      }
-    }
-    closeCamera();
-  }, [closeCamera, processImage]);
-
-  const onSpeechResult = useCallback((transcript: string) => {
-    const foundCard = findCardByName(transcript);
-    if (foundCard) {
-      resetState();
-      setDrawnCards([{ 
-        card: foundCard, 
-        reversed: false,
-        position: selectedSpread.positions[0].title,
-      }]);
-    } else {
-      setError(`Could not find a card matching "${transcript}". Please try again.`);
-    }
-  }, [resetState, selectedSpread.positions]);
-
-  const { isListening, toggleListening } = useSpeechRecognition({
-    onResult: onSpeechResult,
-    onError: setError,
-  });
-
-  const handleStartListening = useCallback(() => {
-    resetState();
-    toggleListening();
-  }, [resetState, toggleListening]);
-
-  const handleSaveEntry = useCallback(() => {
-    if (drawnCards.length === 0 || !interpretation) return;
-    const now = new Date();
-    const newEntry: JournalEntry = {
-      id: crypto.randomUUID(),
-      dateISO: now.toISOString().slice(0, 10),
-      question: question || undefined,
-      drawnCards,
-      impression,
-      interpretation,
-      almanac,
-      createdAt: now.toISOString(),
-      tags: tags.length > 0 ? tags : undefined,
+        dispatch({ type: 'START_READING', payload: { cards, spread, question } });
     };
-    addEntry(newEntry);
-    showToast('Entry saved successfully.');
-    setActiveView('journal');
-    setQuestion('');
-    resetState();
-  }, [drawnCards, interpretation, question, impression, almanac, tags, addEntry, showToast, setActiveView, resetState]);
-  
-  const handleNewReading = useCallback(() => {
-    setQuestion('');
-    resetState();
-  }, [resetState]);
+    
+    const handleStartDailyDraw = () => {
+        const dailySpread = SPREADS.find(s => s.id === 'single-card')!;
+        const shuffled = [...TAROT_DECK].sort(() => 0.5 - Math.random());
+        const cards = [{
+            card: shuffled[0],
+            isReversed: settings.includeReversals && Math.random() > 0.5,
+        }];
+        setIsDailyDrawModalOpen(false);
+        startReading(cards, dailySpread, "Card of the Day");
+    };
 
-  const handleSaveImage = useCallback((imageUrl: string, cardName: string) => {
-    if (!imageUrl) return;
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    const sanitizedCardName = cardName.replace(/\s+/g, '_');
-    link.download = `TarotCompanion_${sanitizedCardName}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, []);
+    const handleSaveToJournal = (impression: string, tags: string[]) => {
+        if (!state.interpretation || !state.spread) return;
 
-  const handleDailyDraw = useCallback(async () => {
-    setError(null);
-    setIsDailyDrawLoading(true);
-    try {
-      const spread = defaultSpreads.find(s => s.id === 'single-card');
-      if (!spread) {
-        throw new Error('Could not find the Card of the Day spread.');
-      }
+        const newEntry: JournalEntry = {
+            id: `entry-${crypto.randomUUID()}`,
+            createdAt: new Date().toISOString(),
+            dateISO: todayISO,
+            spread: state.spread,
+            drawnCards: state.drawnCards,
+            interpretation: state.interpretation,
+            question: state.question.trim() || undefined,
+            impression,
+            tags: tags.length > 0 ? tags : undefined,
+        };
+        addEntry(newEntry);
+        showToast('Reading saved to journal!');
+        dispatch({ type: 'RESET' });
+    };
 
-      const deckCopy = [...availableDeck];
-      const randomIndex = Math.floor(Math.random() * deckCopy.length);
-      const card = deckCopy[randomIndex];
-      const drawnCard: DrawnCard = {
-        card,
-        reversed: settings.includeReversals && Math.random() < 0.3,
-        position: spread.positions[0].title,
-      };
+    const getLoadingMessage = () => {
+        if (state.phase === 'generatingImages') {
+            return [ "Sketching the unseen...", "Weaving threads of light...", "Giving form to whispers..." ];
+        }
+        return [ "Gathering cosmic echoes...", "Listening to the cards' story...", "Interpreting the symbols..." ];
+    };
 
-      const interpretation = await getSpreadInterpretation([drawnCard], almanac, spread.name, 'Daily Card');
-      
-      setDailyDrawData({ drawnCard, interpretation });
-    } catch (err) {
-      const message = (err instanceof Error && 'userFriendlyMessage' in err)
-        ? (err as any).userFriendlyMessage
-        : 'An unexpected error occurred during the daily draw.';
-      setError(message);
-    } finally {
-      setIsDailyDrawLoading(false);
-    }
-  }, [almanac, availableDeck, settings.includeReversals]);
-
-  const showSetup = drawnCards.length === 0 && !isLoading && !isCameraOpen;
-  const showResult = drawnCards.length > 0 && !isLoading;
-
-  return (
-    <div className="space-y-8">
-      <section className="bg-surface rounded-card shadow-main p-6 space-y-4 card-border text-center">
-        <h2 className="text-3xl font-serif font-bold text-accent mb-2">Your Daily Draw</h2>
-        {dailyDrawEntryToday ? (
-          <div className="animate-fade-in space-y-3">
-            <p className="text-sub">You've completed your daily draw. See you tomorrow!</p>
-            <div className="max-w-[180px] mx-auto text-center">
-              {dailyDrawEntryToday.drawnCards[0].card.imageUrl ? (
-                <img src={dailyDrawEntryToday.drawnCards[0].card.imageUrl} alt={`Art for ${dailyDrawEntryToday.drawnCards[0].card.name}`} className="rounded-card shadow-md w-full" />
-              ) : (
-                 <CardBack />
-              )}
-              <p className="font-semibold text-text text-lg mt-2">{dailyDrawEntryToday.drawnCards[0].card.name}</p>
-              <p className="text-sm text-sub">{dailyDrawEntryToday.drawnCards[0].reversed ? '(Reversed)' : '(Upright)'}</p>
+    const renderDashboard = () => (
+        <div className="space-y-8 animate-fade-in text-center font-serif">
+            <div className="bg-surface/70 rounded-card p-6 card-border">
+                <h2 className="text-2xl font-bold text-accent mb-2">Welcome, Seeker</h2>
+                <p className="text-sub max-w-md mx-auto">Center your thoughts, take a breath, and let the cards offer their wisdom.</p>
             </div>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sub mb-4">Take a moment for yourself. Draw a single card for focus and guidance.</p>
-            <button
-              onClick={handleDailyDraw}
-              disabled={isDailyDrawLoading}
-              className="bg-accent text-accent-dark font-bold py-3 px-8 rounded-ui transition-all duration-300 text-lg shadow-lg hover:shadow-glow hover:scale-105 transform disabled:opacity-50 disabled:cursor-wait disabled:scale-100 disabled:shadow-lg"
-            >
-              {isDailyDrawLoading ? 'Drawing...' : 'Draw Your Card'}
-            </button>
-          </div>
-        )}
-      </section>
+            
+            {entryForToday ? (
+                 <div className="bg-surface/70 rounded-card p-6 card-border shadow-main">
+                    <h3 className="text-xl font-bold text-text mb-4">Your Card of the Day</h3>
+                    <div className="flex flex-col md:flex-row items-center gap-6 text-left">
+                        <img 
+                            src={entryForToday.drawnCards[0].imageUrl || entryForToday.drawnCards[0].card.imageUrl} 
+                            alt={entryForToday.drawnCards[0].card.name} 
+                            className={`w-32 h-auto rounded-lg shadow-lg flex-shrink-0 ${entryForToday.drawnCards[0].isReversed ? 'transform rotate-180' : ''}`} 
+                        />
+                        <div>
+                            <p className="text-lg font-bold text-accent">{entryForToday.drawnCards[0].card.name}</p>
+                            <p className="text-sub italic text-sm mb-2">{entryForToday.interpretation.cards[0].meaning}</p>
+                            <button onClick={() => setActiveView('journal')} className="font-sans text-accent underline text-sm hover:text-accent/80">View full reading in Journal</button>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-surface/70 rounded-card p-6 card-border shadow-main">
+                    <h3 className="text-xl font-bold text-text mb-4">Daily Ritual</h3>
+                    <p className="text-sub mb-6">Begin with a single card for focus and guidance throughout your day.</p>
+                     <button 
+                        onClick={() => setIsDailyDrawModalOpen(true)} 
+                        className="w-full max-w-xs mx-auto bg-accent text-accent-dark font-bold py-3 px-8 rounded-ui transition-all duration-300 text-lg shadow-lg hover:shadow-glow hover:scale-105 transform"
+                    >
+                        Draw Card of the Day
+                    </button>
+                </div>
+            )}
 
-      {showSetup && (
-        <section className="bg-surface rounded-card shadow-main p-6 space-y-6 card-border">
-          <h2 className="text-3xl font-serif font-bold text-accent mb-2 text-center">Start a New Reading</h2>
-          <ReadingSetup
-            selectedSpreadId={selectedSpreadId}
-            setSelectedSpreadId={setSelectedSpreadId}
-            availableSpreads={availableSpreads}
-            selectedSpread={selectedSpread}
-            question={question}
-            setQuestion={setQuestion}
-            onShowSpreadDetails={() => setIsSpreadDetailModalOpen(true)}
-          />
-          <InputMethodSelector
-            selectedSpread={selectedSpread}
-            handleDigitalDraw={handleDigitalDraw}
-            handleManualDraw={handleManualDraw}
-            openCamera={openCamera}
-            handleToggleListening={handleStartListening}
-            isListening={isListening}
-            manualCardState={manualCardState}
-            setManualCardState={setManualCardState}
-            availableDeck={availableDeck}
-            settings={settings}
-            handleFileSelected={handleFileSelected}
-          />
-        </section>
-      )}
-
-      {isLoading && (
-        <div className="flex justify-center items-center py-20">
-          <Spinner message={loadingMessage} />
+            <div className="bg-surface/70 rounded-card p-6 card-border">
+                <h3 className="text-xl font-bold text-text mb-4">Deeper Inquiry</h3>
+                <p className="text-sub mb-6">When you seek more detailed insight, choose a spread that fits your question.</p>
+                <button 
+                    onClick={() => setIsCustomReadingModalOpen(true)}
+                    className="w-full max-w-xs mx-auto bg-border text-text font-bold py-3 px-8 rounded-ui hover:bg-border/70 transition-colors"
+                >
+                    Start a New Reading
+                </button>
+            </div>
         </div>
-      )}
+    );
 
-      {error && !isDailyDrawLoading && (
-        <div role="alert" className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-lg text-center">
-          <p>{error}</p>
-          <button onClick={() => setError(null)} className="mt-2 bg-red-500/20 px-3 py-1 rounded-md text-sm hover:bg-red-500/40">Dismiss</button>
+    const renderContent = () => {
+        switch (state.phase) {
+            case 'loading':
+            case 'generatingImages':
+                return (
+                    <div className="flex justify-center items-center h-64 animate-fade-in">
+                        <Spinner message={getLoadingMessage()} />
+                    </div>
+                );
+            case 'imageError':
+                 return (
+                    <div className="bg-surface rounded-card shadow-main p-6 card-border animate-fade-in text-center font-serif">
+                        <h3 className="text-2xl font-bold text-red-400 mb-4">Art Generation Failed</h3>
+                        <p className="text-sub mb-2 max-w-md mx-auto">{state.error || "An unexpected error occurred."}</p>
+                        <p className="text-sub mb-6">You can try again, or continue with the default card art.</p>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center font-sans">
+                            <button onClick={() => dispatch({ type: 'RETRY_IMAGE_GENERATION' })} className="flex-1 bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui">Retry Generation</button>
+                            <button onClick={() => dispatch({ type: 'CONTINUE_WITHOUT_ART'})} className="flex-1 bg-border text-text font-bold py-3 px-4 rounded-ui">Continue with Default Art</button>
+                        </div>
+                    </div>
+                );
+            case 'result':
+                return state.interpretation && state.drawnCards.length > 0 && state.spread && (
+                    <ReadingResult
+                        drawnCards={state.drawnCards}
+                        interpretation={state.interpretation}
+                        spread={state.spread}
+                        question={state.question}
+                        onSave={handleSaveToJournal}
+                        onReset={() => dispatch({ type: 'RESET' })}
+                    />
+                );
+            case 'dashboard':
+            default:
+                return renderDashboard();
+        }
+    };
+
+    return (
+        <div className="space-y-8 font-sans">
+            {renderContent()}
+
+            <DailyDrawModal
+                isOpen={isDailyDrawModalOpen}
+                onClose={() => setIsDailyDrawModalOpen(false)}
+                onDraw={handleStartDailyDraw}
+            />
+            
+            <CustomReadingFlow
+                isOpen={isCustomReadingModalOpen}
+                onClose={() => setIsCustomReadingModalOpen(false)}
+                onStartReading={(cards, spread, question) => {
+                    setIsCustomReadingModalOpen(false);
+                    startReading(cards, spread, question);
+                }}
+            />
         </div>
-      )}
-
-      <CameraModal
-        isOpen={isCameraOpen}
-        onClose={closeCamera}
-        onTakePicture={handleTakePicture}
-        videoRef={videoRef}
-        canvasRef={canvasRef}
-      />
-      
-      <SpreadDetailModal
-        isOpen={isSpreadDetailModalOpen}
-        onClose={() => setIsSpreadDetailModalOpen(false)}
-        spread={selectedSpread}
-      />
-      
-      <DailyDrawModal
-        isOpen={!!dailyDrawData}
-        onClose={() => setDailyDrawData(null)}
-        data={dailyDrawData}
-        almanac={almanac}
-      />
-
-      {showResult && (
-        <ReadingResult
-            selectedSpread={selectedSpread}
-            drawnCards={drawnCards}
-            interpretation={interpretation}
-            question={question}
-            impression={impression}
-            setImpression={setImpression}
-            tags={tags}
-            setTags={setTags}
-            handleSaveEntry={handleSaveEntry}
-            handleNewReading={handleNewReading}
-            handleSaveImage={handleSaveImage}
-        />
-      )}
-    </div>
-  );
+    );
 };
 
 export default HomeView;

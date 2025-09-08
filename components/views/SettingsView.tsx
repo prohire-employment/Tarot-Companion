@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useJournalStore } from '../../store/journalStore';
 import { useUiStore } from '../../store/uiStore';
+import { useCardImageStore } from '../../store/cardImageStore';
 import type { AppSettings, JournalEntry, Spread } from '../../types';
 import ConfirmModal from '../ConfirmModal';
 import { useSpreadStore } from '../../store/spreadStore';
@@ -13,10 +14,12 @@ const SettingsView: React.FC = () => {
   const { entries, setEntries } = useJournalStore();
   const { customSpreads, deleteSpread } = useSpreadStore();
   const { showToast } = useUiStore();
+  const { clearCache } = useCardImageStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isClearCacheConfirmOpen, setIsClearCacheConfirmOpen] = useState(false);
   const fileToImport = useRef<File | null>(null);
 
   // State for spread management
@@ -136,6 +139,12 @@ const SettingsView: React.FC = () => {
     setSpreadToDeleteId(null);
     setIsDeleteConfirmOpen(false);
   };
+  
+  const proceedWithClearCache = () => {
+    clearCache();
+    showToast('AI image cache has been cleared.');
+    setIsClearCacheConfirmOpen(false);
+  }
 
   const handleCreateNewSpread = () => {
     if (customSpreads.length >= MAX_CUSTOM_SPREADS) {
@@ -253,11 +262,11 @@ const SettingsView: React.FC = () => {
         <h3 className="text-xl font-bold text-accent mb-4">Data Management</h3>
         <div className="space-y-4 font-sans">
           <p className="text-sub text-sm">All your data is stored securely in your browser. You can back it up to a file or import a previous backup.</p>
-          <div className="flex gap-4">
-            <button onClick={handleExport} className="flex-1 bg-border text-text font-bold py-2 px-4 rounded-ui hover:bg-border/70 transition-colors">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button onClick={handleExport} className="w-full bg-border text-text font-bold py-2 px-4 rounded-ui hover:bg-border/70 transition-colors">
               Export Journal
             </button>
-            <button onClick={handleImportClick} className="flex-1 bg-border text-text font-bold py-2 px-4 rounded-ui hover:bg-border/70 transition-colors">
+            <button onClick={handleImportClick} className="w-full bg-border text-text font-bold py-2 px-4 rounded-ui hover:bg-border/70 transition-colors">
               Import Journal
             </button>
             <input
@@ -268,6 +277,12 @@ const SettingsView: React.FC = () => {
               className="hidden"
             />
           </div>
+            <div className="pt-4 mt-4 border-t border-border/50">
+                 <button onClick={() => setIsClearCacheConfirmOpen(true)} className="w-full bg-red-900/50 text-red-300 font-bold py-2 px-4 rounded-ui hover:bg-red-900/80 transition-colors">
+                    Clear AI Image Cache
+                </button>
+                <p className="text-sub text-xs text-center mt-2">This will remove all custom-generated card art, freeing up storage. Default art will be used until new art is generated.</p>
+            </div>
         </div>
       </section>
     </div>
@@ -280,6 +295,15 @@ const SettingsView: React.FC = () => {
     >
       <p>Importing this file will replace all entries in your current journal. This action cannot be undone.</p>
       <p className="mt-2">Are you sure you want to continue?</p>
+    </ConfirmModal>
+
+    <ConfirmModal
+      isOpen={isClearCacheConfirmOpen}
+      onClose={() => setIsClearCacheConfirmOpen(false)}
+      onConfirm={proceedWithClearCache}
+      title="Clear Image Cache?"
+    >
+      <p>Are you sure you want to delete all AI-generated card images from your local storage? This cannot be undone.</p>
     </ConfirmModal>
 
     <ConfirmModal

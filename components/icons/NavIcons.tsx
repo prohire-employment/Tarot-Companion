@@ -22,6 +22,12 @@ export const CalendarIcon: React.FC<IconProps> = (props) => (
   </svg>
 );
 
+export const LibraryIcon: React.FC<IconProps> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m6-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m-3.75 2.25V6.108c0-1.135.845-2.098 1.976-2.192a48.424 48.424 0 0 1 3.552 0c1.131.094 1.976 1.057 1.976 2.192v12.14m-8.25-12.14v12.14a2.25 2.25 0 0 1-2.25 2.25H4.5a2.25 2.25 0 0 1-2.25-2.25V6.108c0-1.135.845-2.098 1.976-2.192a48.424 48.424 0 0 1 3.552 0c1.131.094 1.976 1.057 1.976 2.192" />
+  </svg>
+);
+
 export const SettingsIcon: React.FC<IconProps> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-1.007 1.11-1.226.554-.223 1.197-.242 1.763.045l4.852 2.898c.63.374 1.066 1.01 1.066 1.723v5.59c0 .713-.436 1.349-1.066 1.723l-4.852 2.898c-.566.337-1.21.318-1.763.045-.554-.223-1.02-.684-1.11-1.226l-.285-1.721 1.758-1.035c.22-.13.316-.39.233-.623l-2.03-4.832c-.083-.197-.31-.307-.53-.233l-1.758 1.035-.285-1.721Z" />

@@ -1,6 +1,10 @@
+// Foundational Types
 export type Arcana = 'Major' | 'Minor';
-export type Suit = 'Wands' | 'Cups' | 'Swords' | 'Pentacles' | 'None';
+export type Suit = 'None' | 'Wands' | 'Cups' | 'Swords' | 'Pentacles';
+export type View = 'home' | 'journal' | 'calendar' | 'settings' | 'library';
+export type DeckType = 'full' | 'major' | 'minor';
 
+// Data Structures
 export interface TarotCard {
   id: string;
   name: string;
@@ -8,7 +12,7 @@ export interface TarotCard {
   suit: Suit;
   uprightKeywords: string[];
   reversedKeywords: string[];
-  imageUrl?: string;
+  imageUrl: string;
 }
 
 export interface SpreadPosition {
@@ -26,8 +30,34 @@ export interface Spread {
 
 export interface DrawnCard {
   card: TarotCard;
-  reversed: boolean;
-  position: string; // e.g., 'Past', 'Present', 'The Situation'
+  isReversed: boolean;
+  imageUrl?: string;
+}
+
+export interface JournalEntry {
+  id: string;
+  createdAt: string; // ISO string
+  dateISO: string; // 'YYYY-MM-DD'
+  spread: Spread;
+  drawnCards: DrawnCard[];
+  interpretation: {
+    overall: string;
+    cards: {
+      cardName: string;
+      meaning: string;
+    }[];
+  };
+  question?: string;
+  impression: string;
+  tags?: string[];
+}
+
+// Application State & Settings
+export interface AppSettings {
+  reminderTime: string; // 'HH:mm'
+  notificationsEnabled: boolean;
+  deckType: DeckType;
+  includeReversals: boolean;
 }
 
 export interface AlmanacInfo {
@@ -36,41 +66,44 @@ export interface AlmanacInfo {
   holiday: string | null;
 }
 
-export interface Interpretation {
-  outer: string;
-  inner: string;
-  whispers: string[];
-}
-
-export interface JournalEntry {
-  id: string;
-  dateISO: string;
-  question?: string;
-  drawnCards: DrawnCard[];
-  impression: string;
-  interpretation: Interpretation;
-  almanac: AlmanacInfo;
-  createdAt: string;
-  tags?: string[];
-}
-
-export interface AppSettings {
-  reminderTime: string;
-  notificationsEnabled: boolean;
-  deckType: 'full' | 'major' | 'minor';
-  includeReversals: boolean;
-}
-
-export type View = 'home' | 'journal' | 'calendar' | 'settings';
-
-export type ManualCardState = {
+export interface ManualCardState {
   cardId: string;
   reversed: boolean;
-};
+}
 
-// Web Speech API types for browsers that support it
+export type JournalFilter = {
+    dateISO: string;
+}
+
+// State Reducer for HomeView Reading Flow
+export type ReadingPhase = 'dashboard' | 'generatingImages' | 'loading' | 'result' | 'imageError' | 'interpretationError';
+
+export interface ReadingState {
+    phase: ReadingPhase;
+    drawnCards: DrawnCard[];
+    interpretation: {
+        overall: string;
+        cards: { cardName: string; meaning: string }[];
+    } | null;
+    spread: Spread | null;
+    question: string;
+    error: string | null;
+}
+
+export type ReadingAction =
+    | { type: 'START_READING'; payload: { cards: DrawnCard[], spread: Spread, question: string } }
+    | { type: 'IMAGE_GENERATION_SUCCESS'; payload: { cardsWithImages: DrawnCard[] } }
+    | { type: 'IMAGE_GENERATION_FAILURE'; payload: { error: string } }
+    | { type: 'INTERPRETATION_SUCCESS'; payload: { interpretation: ReadingState['interpretation'] } }
+    | { type: 'INTERPRETATION_FAILURE'; payload: { error: string } }
+    | { type: 'RETRY_IMAGE_GENERATION' }
+    | { type: 'CONTINUE_WITHOUT_ART' }
+    | { type: 'RESET' };
+
+
+// Browser API Extensions (for Speech Recognition)
 export interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
+  readonly error: 'no-speech' | 'aborted' | 'audio-capture' | 'network' | 'not-allowed' | 'service-not-allowed' | 'bad-grammar' | 'language-not-supported';
   readonly message: string;
 }
 
@@ -79,53 +112,42 @@ export interface SpeechRecognitionEvent extends Event {
   readonly results: SpeechRecognitionResultList;
 }
 
-export interface SpeechRecognitionResultList {
+interface SpeechRecognitionResultList {
   readonly length: number;
   item(index: number): SpeechRecognitionResult;
   [index: number]: SpeechRecognitionResult;
 }
 
-export interface SpeechRecognitionResult {
+interface SpeechRecognitionResult {
   readonly isFinal: boolean;
   readonly length: number;
   item(index: number): SpeechRecognitionAlternative;
   [index: number]: SpeechRecognitionAlternative;
 }
 
-export interface SpeechRecognitionAlternative {
-  readonly transcript: string;
+interface SpeechRecognitionAlternative {
   readonly confidence: number;
+  readonly transcript: string;
 }
 
 export interface SpeechRecognition extends EventTarget {
   continuous: boolean;
-  grammars: any; // SpeechGrammarList is complex, 'any' is fine for now
+  grammars: any; // SpeechGrammarList is a complex type, 'any' is acceptable here for simplicity
   interimResults: boolean;
   lang: string;
   maxAlternatives: number;
-  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
   onaudiostart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onaudioend: ((this: SpeechRecognition, ev: Event) => any) | null;
   onend: ((this: SpeechRecognition, ev: Event) => any) | null;
   onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
   onnomatch: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
   onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onsoundend: ((this: SpeechRecognition, ev: Event) => any) | null;
   onsoundstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onsoundend: ((this: SpeechRecognition, ev: Event) => any) | null;
   onspeechstart: ((this: SpeechRecognition, ev: Event) => any) | null;
+  onspeechend: ((this: SpeechRecognition, ev: Event) => any) | null;
   onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
   abort(): void;
   start(): void;
   stop(): void;
-}
-
-export interface SpeechRecognitionStatic {
-  new(): SpeechRecognition;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: SpeechRecognitionStatic;
-    webkitSpeechRecognition: SpeechRecognitionStatic;
-  }
 }
