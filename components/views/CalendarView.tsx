@@ -6,6 +6,7 @@ import type { JournalEntry } from '../../types';
 import { SabbatIcon } from '../icons/AlmanacIcons';
 import CalendarDay from '../calendar/CalendarDay';
 import CalendarDayModal from '../calendar/CalendarDayModal';
+import { getLocalISO_Date } from '../../lib/utils';
 
 const CalendarView: React.FC = () => {
   const almanac = useAlmanac();
@@ -50,11 +51,10 @@ const CalendarView: React.FC = () => {
       });
     }
 
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = getLocalISO_Date(new Date());
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const dateStr = date.toISOString().slice(0, 10);
+      const dateStr = getLocalISO_Date(date);
       grid.push({
         day,
         isCurrentMonth: true,

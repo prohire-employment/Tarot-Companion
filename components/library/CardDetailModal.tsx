@@ -18,7 +18,6 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ isOpen, onClose, card
 
   const { imageCache } = useCardImageStore();
   const { entries } = useJournalStore();
-  const { setActiveView } = useUiStore();
 
   const journalAppearances = useMemo(() => {
     if (!card) return [];
@@ -84,7 +83,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ isOpen, onClose, card
                         <ul className="list-disc list-inside text-sub text-sm space-y-1 mt-1">
                             {journalAppearances.map(entry => (
                                 <li key={entry.id}>
-                                    <button onClick={() => { onClose(); setActiveView('journal'); }} className="underline hover:text-text">
+                                    <button onClick={() => { onClose(); window.location.hash = 'journal'; }} className="underline hover:text-text">
                                         {entry.date}: {entry.spread}
                                     </button>
                                 </li>

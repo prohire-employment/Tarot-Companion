@@ -10,8 +10,9 @@ import { useAlmanac } from '../../hooks/useAlmanac';
 import { useCardImageStore } from '../../store/cardImageStore';
 import CustomReadingFlow from '../home/CustomReadingFlow';
 import DailyDrawModal from '../home/DailyDrawModal';
-import { TAROT_DECK } from '../../data/cards';
+import { useDeckStore } from '../../store/deckStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { shuffleArray, getLocalISO_Date } from '../../lib/utils';
 
 const initialState: ReadingState = {
     phase: 'dashboard',
@@ -60,7 +61,7 @@ const HomeView: React.FC = () => {
     // Stores & Hooks
     const { entries, addEntry } = useJournalStore();
     const { imageCache, addImageToCache } = useCardImageStore();
-    const { showToast, setActiveView } = useUiStore();
+    const { showToast } = useUiStore();
     const { settings } = useSettingsStore();
     const almanacInfo = useAlmanac();
     const [state, dispatch] = useReducer(readingReducer, initialState);
@@ -68,9 +69,10 @@ const HomeView: React.FC = () => {
     // Local UI State
     const [isDailyDrawModalOpen, setIsDailyDrawModalOpen] = useState(false);
     const [isCustomReadingModalOpen, setIsCustomReadingModalOpen] = useState(false);
+    const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
     
     // Memos
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = getLocalISO_Date();
     const entryForToday = useMemo(() => entries.find(e => e.dateISO === todayISO), [entries, todayISO]);
 
     // Async Effects for State Machine
@@ -122,15 +124,30 @@ const HomeView: React.FC = () => {
         dispatch({ type: 'START_READING', payload: { cards, spread, question } });
     };
     
-    const handleStartDailyDraw = () => {
-        const dailySpread = SPREADS.find(s => s.id === 'single-card')!;
-        const shuffled = [...TAROT_DECK].sort(() => 0.5 - Math.random());
-        const cards = [{
-            card: shuffled[0],
-            isReversed: settings.includeReversals && Math.random() > 0.5,
-        }];
-        setIsDailyDrawModalOpen(false);
-        startReading(cards, dailySpread, "Card of the Day");
+    const handleStartDailyDraw = async () => {
+        setIsDailyDrawLoading(true);
+        try {
+            await useDeckStore.getState().loadDeck();
+            const currentDeck = useDeckStore.getState().deck;
+
+            if (currentDeck.length === 0) {
+                showToast("Card deck could not be loaded. Please try again.");
+                return;
+            }
+
+            const dailySpread = SPREADS.find(s => s.id === 'single-card')!;
+            const shuffled = shuffleArray(currentDeck);
+            const cards = [{
+                card: shuffled[0],
+                isReversed: settings.includeReversals && Math.random() > 0.5,
+            }];
+            setIsDailyDrawModalOpen(false);
+            startReading(cards, dailySpread, "Card of the Day");
+        } catch (e) {
+            showToast("An error occurred while preparing the draw.");
+        } finally {
+            setIsDailyDrawLoading(false);
+        }
     };
 
     const handleSaveToJournal = (impression: string, tags: string[]) => {
@@ -178,7 +195,7 @@ const HomeView: React.FC = () => {
                         <div>
                             <p className="text-lg font-bold text-accent">{entryForToday.drawnCards[0].card.name}</p>
                             <p className="text-sub italic text-sm mb-2">{entryForToday.interpretation.cards[0].meaning}</p>
-                            <button onClick={() => setActiveView('journal')} className="font-sans text-accent underline text-sm hover:text-accent/80">View full reading in Journal</button>
+                            <button onClick={() => window.location.hash = 'journal'} className="font-sans text-accent underline text-sm hover:text-accent/80">View full reading in Journal</button>
                         </div>
                     </div>
                 </div>
@@ -254,6 +271,7 @@ const HomeView: React.FC = () => {
                 isOpen={isDailyDrawModalOpen}
                 onClose={() => setIsDailyDrawModalOpen(false)}
                 onDraw={handleStartDailyDraw}
+                isLoading={isDailyDrawLoading}
             />
             
             <CustomReadingFlow

@@ -13,12 +13,12 @@ const CalendarDayModal: React.FC<CalendarDayModalProps> = ({ isOpen, onClose, en
   const modalRef = useRef<HTMLDivElement>(null);
   useModalFocus({ isOpen, onClose, modalRef });
 
-  const { setActiveView, setJournalFilter } = useUiStore();
+  const { setJournalFilter } = useUiStore();
 
   const handleViewInJournal = () => {
     if (entries.length > 0) {
       setJournalFilter({ dateISO: entries[0].dateISO });
-      setActiveView('journal');
+      window.location.hash = 'journal';
       onClose();
     }
   };

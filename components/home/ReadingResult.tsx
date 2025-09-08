@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { DrawnCard, Spread } from '../../types';
 import TagInput from './TagInput';
+import { useSound } from '../../hooks/useSound';
 
 interface ReadingResultProps {
   drawnCards: DrawnCard[];
@@ -31,8 +32,10 @@ const ReadingResult: React.FC<ReadingResultProps> = ({
   const [impression, setImpression] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [view, setView] = useState<'interpretation' | 'journal'>('interpretation');
+  const { playSound } = useSound();
 
   const handleSaveClick = () => {
+    playSound('save');
     onSave(impression.trim(), tags);
   };
   

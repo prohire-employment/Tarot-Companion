@@ -8,6 +8,8 @@ import ConfirmModal from '../ConfirmModal';
 import { useSpreadStore } from '../../store/spreadStore';
 import SpreadEditorModal from '../settings/SpreadEditorModal';
 import { MAX_CUSTOM_SPREADS } from '../../constants';
+import { validateJournalImport } from '../../lib/validation';
+import { getLocalISO_Date } from '../../lib/utils';
 
 const SettingsView: React.FC = () => {
   const { settings, setSettings } = useSettingsStore();
@@ -37,6 +39,7 @@ const SettingsView: React.FC = () => {
     setSettings(prev => ({
       ...prev,
       includeReversals: localSettings.includeReversals,
+      soundsEnabled: localSettings.soundsEnabled,
     }));
     showToast('Reading preferences saved!');
   };
@@ -69,7 +72,7 @@ const SettingsView: React.FC = () => {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    const date = new Date().toISOString().slice(0, 10);
+    const date = getLocalISO_Date();
     link.download = `tarot-companion-backup-${date}.json`;
     document.body.appendChild(link);
     link.click();
@@ -100,18 +103,15 @@ const SettingsView: React.FC = () => {
         const text = e.target?.result;
         if (typeof text !== 'string') throw new Error("File could not be read");
         const importedEntries = JSON.parse(text);
-        if (Array.isArray(importedEntries)) {
-          // A simple validation for the first entry
-          const firstEntry = importedEntries[0] as JournalEntry;
-          if (firstEntry && firstEntry.id && firstEntry.dateISO && firstEntry.drawnCards) {
-             setEntries(importedEntries);
-             showToast(`Successfully imported ${importedEntries.length} entries.`);
-          } else {
-            throw new Error("File does not appear to be a valid journal backup.");
-          }
-        } else {
-          throw new Error("Invalid journal file format.");
+        
+        const { isValid, error } = validateJournalImport(importedEntries);
+        if (!isValid) {
+            throw new Error(error || "File is not a valid journal backup.");
         }
+
+        setEntries(importedEntries as JournalEntry[]);
+        showToast(`Successfully imported ${importedEntries.length} entries.`);
+
       } catch (error) {
         showToast(`Import failed: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
@@ -170,6 +170,19 @@ const SettingsView: React.FC = () => {
                 type="checkbox"
                 checked={localSettings.includeReversals}
                 onChange={e => setLocalSettings(prev => ({ ...prev, includeReversals: e.target.checked }))}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+            </label>
+          </div>
+          <div className="flex items-center justify-between">
+            <label htmlFor="enableSounds" className="text-text">UI Sounds</label>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                id="enableSounds"
+                type="checkbox"
+                checked={localSettings.soundsEnabled}
+                onChange={e => setLocalSettings(prev => ({ ...prev, soundsEnabled: e.target.checked }))}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
@@ -292,6 +305,7 @@ const SettingsView: React.FC = () => {
       onClose={() => setIsConfirmOpen(false)}
       onConfirm={proceedWithImport}
       title="Overwrite Journal?"
+      confirmButtonClass="bg-accent text-accent-dark hover:opacity-90"
     >
       <p>Importing this file will replace all entries in your current journal. This action cannot be undone.</p>
       <p className="mt-2">Are you sure you want to continue?</p>

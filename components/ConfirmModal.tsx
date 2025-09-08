@@ -7,6 +7,7 @@ interface ConfirmModalProps {
   onConfirm: () => void;
   title: string;
   children: React.ReactNode;
+  confirmButtonClass?: string;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -15,6 +16,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   title,
   children,
+  confirmButtonClass = 'bg-red-600 text-white hover:bg-red-700',
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   useModalFocus({ isOpen, onClose, modalRef });
@@ -45,7 +47,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </button>
           <button
             onClick={onConfirm}
-            className="bg-red-600 text-white font-bold py-2 px-4 rounded-ui hover:bg-red-700 transition-colors"
+            className={`font-bold py-2 px-4 rounded-ui transition-colors ${confirmButtonClass}`}
           >
             Confirm
           </button>

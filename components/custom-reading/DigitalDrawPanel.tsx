@@ -1,6 +1,8 @@
 import React from 'react';
 import type { Spread, DrawnCard, TarotCard } from '../../types';
 import { useSettingsStore } from '../../store/settingsStore';
+import { shuffleArray } from '../../lib/utils';
+import { useSound } from '../../hooks/useSound';
 
 interface DigitalDrawPanelProps {
   spread: Spread;
@@ -10,9 +12,10 @@ interface DigitalDrawPanelProps {
 
 const DigitalDrawPanel: React.FC<DigitalDrawPanelProps> = ({ spread, deck, onDraw }) => {
   const { settings } = useSettingsStore();
+  const { playSound } = useSound();
 
   const drawCards = (count: number): DrawnCard[] => {
-    const shuffled = [...deck].sort(() => 0.5 - Math.random());
+    const shuffled = shuffleArray(deck);
     const drawn = shuffled.slice(0, count);
     return drawn.map(card => ({
       card,
@@ -21,6 +24,7 @@ const DigitalDrawPanel: React.FC<DigitalDrawPanelProps> = ({ spread, deck, onDra
   };
 
   const handleDigitalDraw = () => {
+    playSound('draw');
     const cards = drawCards(spread.cardCount);
     onDraw(cards);
   };

@@ -58,6 +58,7 @@ export interface AppSettings {
   notificationsEnabled: boolean;
   deckType: DeckType;
   includeReversals: boolean;
+  soundsEnabled: boolean;
 }
 
 export interface AlmanacInfo {

@@ -13,6 +13,7 @@ const defaultSettings: AppSettings = {
   notificationsEnabled: false,
   deckType: 'full',
   includeReversals: true,
+  soundsEnabled: true,
 };
 
 export const useSettingsStore = create<SettingsState>()(

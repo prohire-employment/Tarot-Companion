@@ -3,7 +3,6 @@ import type { DrawnCard, TarotCard } from '../../types';
 import { useUiStore } from '../../store/uiStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { findBestMatch } from '../../lib/stringSimilarity';
-import { TAROT_DECK } from '../../data/cards';
 import { useSettingsStore } from '../../store/settingsStore';
 import { identifyCardFromImage } from '../../services/geminiService';
 import CameraModal from '../home/CameraModal';
@@ -12,10 +11,11 @@ import { CameraIcon, MicIcon, PhotoIcon } from '../icons/NavIcons';
 
 interface PhysicalDeckPanelProps {
   method: 'photo' | 'voice';
+  deck: TarotCard[];
   onGetReading: (cards: DrawnCard[]) => void;
 }
 
-const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, onGetReading }) => {
+const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onGetReading }) => {
     const { showToast } = useUiStore();
     const { settings } = useSettingsStore();
 
@@ -33,7 +33,7 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, onGetRead
     // Voice State
     const handleVoiceResult = (transcript: string) => {
         setIsProcessing(false);
-        const match = findBestMatch(transcript, TAROT_DECK);
+        const match = findBestMatch(transcript, deck);
         if (match) {
             setRecognizedCard(match);
         } else {
@@ -55,7 +55,7 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, onGetRead
         setRecognizedCard(null);
         try {
             const cardName = await identifyCardFromImage(base64Image);
-            const match = findBestMatch(cardName, TAROT_DECK, 0.7); // Higher threshold for AI
+            const match = findBestMatch(cardName, deck, 0.7); // Higher threshold for AI
             if (match) {
                 setRecognizedCard(match);
             } else {

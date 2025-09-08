@@ -1,16 +1,37 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { useSound } from '../../hooks/useSound';
 import CardBack from '../CardBack';
 
 interface DailyDrawModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDraw: () => void;
+  isLoading?: boolean;
 }
 
-const DailyDrawModal: React.FC<DailyDrawModalProps> = ({ isOpen, onClose, onDraw }) => {
+const DailyDrawModal: React.FC<DailyDrawModalProps> = ({ isOpen, onClose, onDraw, isLoading = false }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   useModalFocus({ isOpen, onClose, modalRef });
+  const { playSound } = useSound();
+
+  useEffect(() => {
+    if (isOpen) {
+      playSound('open');
+    }
+  }, [isOpen, playSound]);
+
+  const handleClose = () => {
+    if (isLoading) return;
+    playSound('close');
+    onClose();
+  };
+
+  const handleDraw = () => {
+    if (isLoading) return;
+    playSound('draw');
+    onDraw();
+  };
 
   if (!isOpen) return null;
 
@@ -20,7 +41,7 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({ isOpen, onClose, onDraw
       role="dialog"
       aria-modal="true"
       aria-labelledby="daily-draw-title"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         ref={modalRef}
@@ -38,14 +59,16 @@ const DailyDrawModal: React.FC<DailyDrawModalProps> = ({ isOpen, onClose, onDraw
         
         <div className="flex flex-col gap-3 font-sans">
             <button
-              onClick={onDraw}
-              className="w-full bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui text-lg hover:opacity-90 transition-opacity"
+              onClick={handleDraw}
+              disabled={isLoading}
+              className="w-full bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui text-lg hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-wait"
             >
-              Draw Card of the Day
+              {isLoading ? 'Preparing...' : 'Draw Card of the Day'}
             </button>
             <button
-              onClick={onClose}
-              className="w-full bg-border text-text font-bold py-2 px-4 rounded-ui hover:bg-border/70 transition-colors"
+              onClick={handleClose}
+              disabled={isLoading}
+              className="w-full bg-border text-text font-bold py-2 px-4 rounded-ui hover:bg-border/70 transition-colors disabled:opacity-70"
             >
               Maybe Later
             </button>

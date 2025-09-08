@@ -17,8 +17,10 @@ const CardSelector: React.FC<CardSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const selectedCard = useMemo(
     () => availableDeck.find(c => c.id === selectedValue),
@@ -47,18 +49,41 @@ const CardSelector: React.FC<CardSelectorProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-        // Delay focus to allow for render
         setTimeout(() => inputRef.current?.focus(), 50);
+        setHighlightedIndex(-1);
     } else {
-        // Clear search when dropdown closes
         setSearchTerm('');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (highlightedIndex >= 0 && listRef.current) {
+      const highlightedElement = listRef.current.children[highlightedIndex] as HTMLLIElement;
+      highlightedElement?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightedIndex]);
 
   const handleSelect = (cardId: string) => {
     onValueChange(cardId);
     setSearchTerm('');
     setIsOpen(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev + 1) % filteredDeck.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev - 1 + filteredDeck.length) % filteredDeck.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && filteredDeck[highlightedIndex]) {
+        handleSelect(filteredDeck[highlightedIndex].id);
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
   };
 
   return (
@@ -91,32 +116,42 @@ const CardSelector: React.FC<CardSelectorProps> = ({
               ref={inputRef}
               type="search"
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={e => {
+                setSearchTerm(e.target.value);
+                setHighlightedIndex(-1);
+              }}
+              onKeyDown={handleKeyDown}
               placeholder="Search for a card..."
               className="w-full bg-bg/50 border border-border rounded-md p-2 text-text placeholder-sub/70 focus:ring-2 focus:ring-accent"
             />
           </div>
           <ul
+            ref={listRef}
             className="max-h-60 overflow-y-auto"
             role="listbox"
           >
             {filteredDeck.length > 0 ? (
-              filteredDeck.map(card => (
-                <li
-                  key={card.id}
-                  onClick={() => handleSelect(card.id)}
-                  role="option"
-                  aria-selected={card.id === selectedValue}
-                  className={`p-3 cursor-pointer hover:bg-border/50 transition-colors ${
-                    card.id === selectedValue ? 'bg-accent/20' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <SuitIcon arcana={card.arcana} suit={card.suit} className="w-5 h-5 text-sub flex-shrink-0" />
-                    <span className="truncate">{card.name}</span>
-                  </div>
-                </li>
-              ))
+              filteredDeck.map((card, index) => {
+                const isHighlighted = index === highlightedIndex;
+                const isSelected = card.id === selectedValue;
+                return (
+                  <li
+                    key={card.id}
+                    onClick={() => handleSelect(card.id)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`p-3 cursor-pointer transition-colors ${
+                      isHighlighted ? 'bg-border' : isSelected ? 'bg-accent/20' : 'hover:bg-border/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <SuitIcon arcana={card.arcana} suit={card.suit} className="w-5 h-5 text-sub flex-shrink-0" />
+                      <span className="truncate">{card.name}</span>
+                    </div>
+                  </li>
+                );
+              })
             ) : (
               <li className="p-3 text-sub text-center">No results found</li>
             )}

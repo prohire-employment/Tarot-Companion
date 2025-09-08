@@ -5,6 +5,8 @@ import type { JournalEntry } from '../../types';
 import ConfirmModal from '../ConfirmModal';
 import EntryEditorModal from '../journal/EntryEditorModal';
 import JournalEntryCard from '../journal/JournalEntryCard';
+import { useDebounce } from '../../hooks/useDebounce';
+import JournalEntrySkeleton from '../journal/JournalEntrySkeleton';
 
 const JournalView: React.FC = () => {
   const { entries, deleteEntry } = useJournalStore();
@@ -13,8 +15,11 @@ const JournalView: React.FC = () => {
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [entryToEdit, setEntryToEdit] = useState<JournalEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [activeFilter, setActiveFilter] = useState<{ type: 'tag' | 'date', value: string } | null>(null);
   
+  const isFiltering = searchTerm !== debouncedSearchTerm;
+
   useEffect(() => {
     if (journalFilter) {
       setSearchTerm('');
@@ -45,7 +50,7 @@ const JournalView: React.FC = () => {
         return true;
       })
       .filter(entry => {
-        const term = searchTerm.toLowerCase();
+        const term = debouncedSearchTerm.toLowerCase();
         if (!term) return true;
         
         const inQuestion = entry.question?.toLowerCase().includes(term);
@@ -55,7 +60,7 @@ const JournalView: React.FC = () => {
 
         return inQuestion || inImpression || inCardNames || inSpreadName;
       });
-  }, [entries, searchTerm, activeFilter]);
+  }, [entries, debouncedSearchTerm, activeFilter]);
   
   const handleTagClick = (tag: string | null) => {
     setSearchTerm('');
@@ -113,7 +118,12 @@ const JournalView: React.FC = () => {
             )}
         </div>
 
-        {filteredEntries.length > 0 ? (
+        {isFiltering ? (
+          <div className="space-y-6">
+            <JournalEntrySkeleton />
+            <JournalEntrySkeleton />
+          </div>
+        ) : filteredEntries.length > 0 ? (
           <div className="space-y-6">
             {filteredEntries.map(entry => (
               <JournalEntryCard 

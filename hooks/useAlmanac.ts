@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { getLunarPhase, getSeason, getWheelHoliday } from '../lib/almanac';
 import type { AlmanacInfo } from '../types';
@@ -14,32 +13,30 @@ export const useAlmanac = (): AlmanacInfo => {
   });
 
   useEffect(() => {
-    const oneDay = 1000 * 60 * 60 * 24;
-    const now = new Date();
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const msUntilTomorrow = tomorrow.getTime() - now.getTime();
-    
-    const timeoutId = setTimeout(() => {
-      const today = new Date();
-      setAlmanacInfo({
-        lunarPhase: getLunarPhase(today),
-        season: getSeason(today),
-        holiday: getWheelHoliday(today),
-      });
-      // After the first timeout, set an interval for every 24 hours
-      const intervalId = setInterval(() => {
+    let timeoutId: number;
+
+    const scheduleNextUpdate = () => {
+      const now = new Date();
+      // Set target to 5 seconds past midnight of the next day to ensure the date has changed.
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5, 0); 
+      const msUntilTomorrow = tomorrow.getTime() - now.getTime();
+
+      timeoutId = window.setTimeout(() => {
         const today = new Date();
         setAlmanacInfo({
           lunarPhase: getLunarPhase(today),
           season: getSeason(today),
           holiday: getWheelHoliday(today),
         });
-      }, oneDay);
-      return () => clearInterval(intervalId);
-    }, msUntilTomorrow);
+        // Schedule the next update recursively
+        scheduleNextUpdate();
+      }, msUntilTomorrow);
+    };
+
+    scheduleNextUpdate();
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once on mount.
 
   return almanacInfo;
 };
