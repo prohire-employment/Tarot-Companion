@@ -1,0 +1,21 @@
+{
+  "name": "tarot-companion",
+  "version": "1.0.0",
+  "description": "A calm, sacred, journal-like app for daily Tarot.",
+  "private": true,
+  "scripts": {
+    "start": "serve -l 3000 .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "tarot",
+    "react",
+    "gemini",
+    "journal"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serve": "^14.2.3"
+  }
+}

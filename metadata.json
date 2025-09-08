@@ -1,0 +1,9 @@
+{
+  "name": "Copy of Tarot Companion",
+  "description": "A calm, sacred, journal-like app for daily Tarot. Logs draws, offers AI-powered layered meanings (Outer, Inner, Whispers), and adapts to lunar phase, season, and Wiccan/occult holidays. Encourages routine with a daily reminder.",
+  "icon": "/public/favicon.svg",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
