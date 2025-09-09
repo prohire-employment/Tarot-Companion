@@ -53,7 +53,10 @@ export function validateJournalImport(data: any): { isValid: boolean; error: str
 
         if (!isValidOptionalString(entry.question)) return { isValid: false, error: `${errorPrefix} 'question' has an invalid type.` };
         if (!isValidString(entry.impression)) return { isValid: false, error: `${errorPrefix} Missing or invalid 'impression'.` };
-        if (entry.tags && !isValidArray(entry.tags)) return { isValid: false, error: `${errorPrefix} 'tags' must be an array.` };
+        if (entry.tags) {
+            if (!isValidArray(entry.tags)) return { isValid: false, error: `${errorPrefix} 'tags' must be an array.` };
+            if (entry.tags.some(t => typeof t !== 'string')) return { isValid: false, error: `${errorPrefix} All items in 'tags' must be strings.`};
+        }
     }
 
     return { isValid: true, error: null };

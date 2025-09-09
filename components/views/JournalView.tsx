@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useJournalStore } from '../../store/journalStore';
 import { useUiStore } from '../../store/uiStore';
 import type { JournalEntry } from '../../types';
@@ -72,6 +72,15 @@ const JournalView: React.FC = () => {
       setActiveFilter(null);
     }
   };
+  
+  const handleEdit = useCallback((entry: JournalEntry) => {
+    setEntryToEdit(entry);
+  }, []);
+
+  const handleDelete = useCallback((id: string) => {
+    setEntryToDelete(id);
+  }, []);
+
 
   return (
     <>
@@ -129,8 +138,8 @@ const JournalView: React.FC = () => {
               <JournalEntryCard 
                 key={entry.id}
                 entry={entry}
-                onEdit={() => setEntryToEdit(entry)}
-                onDelete={() => setEntryToDelete(entry.id)}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
               />
             ))}
           </div>

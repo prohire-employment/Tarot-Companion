@@ -33,10 +33,17 @@ The image should be vertical. Do not include any text, letters, or borders on th
 };
 
 export const identifyCardFromImage = async (base64Image: string): Promise<string> => {
+  const imageParts = base64Image.split(',');
+  if (imageParts.length !== 2) {
+    throw new Error("Invalid base64 image format provided.");
+  }
+  const mimeType = imageParts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const imageData = imageParts[1];
+
   const imagePart: Part = {
     inlineData: {
-      mimeType: 'image/jpeg', // assuming jpeg, but could be png
-      data: base64Image.split(',')[1], // remove the "data:image/jpeg;base64," part
+      mimeType,
+      data: imageData,
     },
   };
   const textPart: Part = {
@@ -154,6 +161,9 @@ Do not include any introductory or concluding text outside of the JSON structure
 
   } catch (error) {
     console.error("Error getting interpretation from Gemini API:", error);
+    if (error instanceof SyntaxError) { // JSON.parse error
+        throw new Error("The AI returned an unexpected response. Please try again.");
+    }
     throw new Error("The Tarot spirits are busy. Please try again in a moment.");
   }
 };

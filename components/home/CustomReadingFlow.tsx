@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useSpreadStore } from '../../store/spreadStore';
 import { useReadingFlowStore } from '../../store/readingFlowStore';
@@ -13,6 +13,7 @@ import ManualInputPanel from '../custom-reading/ManualInputPanel';
 import PhysicalDeckPanel from '../custom-reading/PhysicalDeckPanel';
 import { useDeckStore } from '../../store/deckStore';
 import Spinner from '../Spinner';
+import { useUiStore } from '../../store/uiStore';
 
 interface CustomReadingFlowProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ const CustomReadingFlow: React.FC<CustomReadingFlowProps> = ({ isOpen, onClose, 
     const modalRef = useRef<HTMLDivElement>(null);
     useModalFocus({ isOpen, onClose, modalRef });
     const { playSound } = useSound();
+    const { showToast } = useUiStore();
 
     const { settings, setSettings } = useSettingsStore();
     const { customSpreads } = useSpreadStore();
@@ -79,13 +81,14 @@ const CustomReadingFlow: React.FC<CustomReadingFlowProps> = ({ isOpen, onClose, 
     useEffect(() => {
         if (selectedSpread.cardCount > 1 && (inputMethod === 'photo' || inputMethod === 'voice')) {
             setInputMethod('digital');
+            showToast("Photo/Voice input is for single-card spreads only. Switched to Digital Draw.");
         }
-    }, [selectedSpread, inputMethod, setInputMethod]);
+    }, [selectedSpread, inputMethod, setInputMethod, showToast]);
 
 
-    const startReading = (cards: DrawnCard[]) => {
+    const startReading = useCallback((cards: DrawnCard[]) => {
       onStartReading(cards, selectedSpread, question);
-    };
+    }, [onStartReading, selectedSpread, question]);
 
     if (!isOpen) return null;
 
@@ -160,7 +163,7 @@ const CustomReadingFlow: React.FC<CustomReadingFlowProps> = ({ isOpen, onClose, 
                             <div className="space-y-2">
                                 <div className="flex items-center">
                                     <label className="text-sub font-medium block">Choose your spread.</label>
-                                    <button type="button" onClick={() => setIsSpreadInfoModalOpen(true)} className="ml-2 text-sub hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full" aria-label="View all spread details">
+                                    <button type="button" onClick={() => setIsSpreadInfoModalOpen(true)} className="ml-2 text-sub hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-full" aria-label="View details for all available spreads">
                                         <InfoIcon className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -206,7 +209,6 @@ const CustomReadingFlow: React.FC<CustomReadingFlowProps> = ({ isOpen, onClose, 
                                         )
                                     })}
                                 </div>
-                                {selectedSpread.cardCount > 1 && (inputMethod === 'photo' || inputMethod === 'voice') && <p className="text-xs text-center text-sub/80 mt-2">Photo and Voice input are available for single-card draws only.</p>}
                             </div>
 
                             {inputMethod === 'digital' && <DigitalDrawPanel spread={selectedSpread} deck={availableDeck} onDraw={startReading} />}

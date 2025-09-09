@@ -81,7 +81,7 @@ const LibraryView: React.FC = () => {
                 <div className="font-sans">
                     <input 
                         type="search"
-                        placeholder="Search by name or keyword..."
+                        placeholder="Search by name or keyword (upright/reversed)..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="w-full bg-surface/80 border border-border rounded-ui p-3 text-text placeholder-sub/70 focus:ring-2 focus:ring-accent"

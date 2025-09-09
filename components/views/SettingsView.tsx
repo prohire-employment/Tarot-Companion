@@ -290,11 +290,17 @@ const SettingsView: React.FC = () => {
               className="hidden"
             />
           </div>
-            <div className="pt-4 mt-4 border-t border-border/50">
-                 <button onClick={() => setIsClearCacheConfirmOpen(true)} className="w-full bg-red-900/50 text-red-300 font-bold py-2 px-4 rounded-ui hover:bg-red-900/80 transition-colors">
+            <div className="pt-4 mt-4 border-t border-border/50 bg-red-900/10 p-4 rounded-lg">
+                 <button 
+                    onClick={() => setIsClearCacheConfirmOpen(true)} 
+                    className="w-full bg-red-900/50 text-red-300 font-bold py-2 px-4 rounded-ui hover:bg-red-900/80 transition-colors"
+                    aria-describedby="clear-cache-description"
+                 >
                     Clear AI Image Cache
                 </button>
-                <p className="text-sub text-xs text-center mt-2">This will remove all custom-generated card art, freeing up storage. Default art will be used until new art is generated.</p>
+                <p id="clear-cache-description" className="text-sub text-xs text-center mt-2">
+                    This is a destructive action. It will remove all custom-generated card art from your device, freeing up storage. Default art will be used until new art is generated.
+                </p>
             </div>
         </div>
       </section>

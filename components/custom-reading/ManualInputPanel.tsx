@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, memo } from 'react';
 import type { Spread, DrawnCard, TarotCard, ManualCardState } from '../../types';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useUiStore } from '../../store/uiStore';
@@ -82,4 +83,4 @@ const ManualInputPanel: React.FC<ManualInputPanelProps> = ({ spread, deck, onGet
   );
 };
 
-export default ManualInputPanel;
+export default memo(ManualInputPanel);

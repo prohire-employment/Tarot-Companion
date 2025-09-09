@@ -32,10 +32,11 @@ export const useSpeechRecognition = ({ onResult, onError }: UseSpeechRecognition
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       onResult(transcript);
-      setIsListening(false);
     };
 
-    recognition.onend = () => setIsListening(false);
+    recognition.onend = () => {
+        setIsListening(false);
+    };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       let errorMessage = `Speech recognition error: ${event.error}`;
@@ -50,44 +51,40 @@ export const useSpeechRecognition = ({ onResult, onError }: UseSpeechRecognition
           errorMessage = "A network error occurred. Please check your connection.";
           break;
         case 'aborted':
-           setIsListening(false);
+           // Don't show an error for manual aborts
            return;
         default:
           break;
       }
       onError(errorMessage);
-      setIsListening(false);
     };
 
     recognitionRef.current = recognition;
   }, [onResult, onError]);
 
-  const toggleListening = useCallback(() => {
+  const startListening = useCallback(() => {
     const recognition = recognitionRef.current;
-    if (!recognition) {
-        onError("Speech recognition is not supported on this browser.");
-        return;
+    if (!recognition || isListening) {
+      return;
     }
 
-    if (isListening) {
-      recognition.stop();
-    } else {
-      try {
-        recognition.start();
-        setIsListening(true);
-      } catch (e) {
-        // Catch immediate errors from start(), e.g., if already started
-        onError("Could not start speech recognition. Please try again.");
-        setIsListening(false);
-      }
+    try {
+      recognition.start();
+      setIsListening(true);
+    } catch (e) {
+      // Catch immediate errors from start(), e.g., if already started
+      onError("Could not start speech recognition. Please try again.");
     }
   }, [isListening, onError]);
   
   const stopListening = useCallback(() => {
-    if (isListening && recognitionRef.current) {
-        recognitionRef.current.stop();
+    const recognition = recognitionRef.current;
+    if (!recognition || !isListening) {
+      return;
     }
+    // The onend event will fire naturally, which will set isListening to false.
+    recognition.stop();
   }, [isListening]);
 
-  return { isListening, toggleListening, stopListening, isSupported: !!recognitionRef.current };
+  return { isListening, startListening, stopListening, isSupported: !!recognitionRef.current };
 };

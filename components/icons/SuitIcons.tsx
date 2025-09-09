@@ -25,13 +25,14 @@ const CupsIcon: React.FC<IconProps> = (props) => (
 
 const SwordsIcon: React.FC<IconProps> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l7.5-7.5 7.5 7.5m-15 6l7.5-7.5 7.5 7.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m-4-4h8" />
   </svg>
 );
 
 const PentaclesIcon: React.FC<IconProps> = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.795V12A9 9 0 103 12v.795l-.322.185A.75.75 0 002.25 14.5v.068a.75.75 0 00.322.627l.322.185v1.275A.75.75 0 003.75 18v.068a.75.75 0 00.322.627l.322.185v1.275a.75.75 0 00.82.727l.004-.002a.75.75 0 00.727-.82V20.5l.322-.185a.75.75 0 00.322-.627v-.068a.75.75 0 00-.82-.727l-.004.002a.75.75 0 00-.727.82v.982l-.322-.185a.75.75 0 00-.322-.627v-1.275l.322-.185a.75.75 0 00.322-.627v-.068a.75.75 0 00-.82-.727l-.004.002a.75.75 0 00-.727.82v.982l-.322-.185a.75.75 0 00-.322-.627v-1.275l.322-.185a.75.75 0 00.322-.627V14.5a.75.75 0 00-.82-.727l-.004.002a.75.75 0 00-.727.82v.982l-.322-.185a.75.75 0 00-.322-.627V14.5a.75.75 0 00-.427-.693z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 110-18 9 9 0 010 18z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5l1.95 5.92h6.22l-5.03 3.65 1.92 5.95L12 16.35l-5.06 3.67 1.92-5.95-5.03-3.65h6.22L12 4.5z" />
   </svg>
 );
 

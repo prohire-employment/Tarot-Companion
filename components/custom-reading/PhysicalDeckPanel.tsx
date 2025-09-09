@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, memo } from 'react';
 import type { DrawnCard, TarotCard } from '../../types';
 import { useUiStore } from '../../store/uiStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
@@ -21,7 +21,9 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
 
     // Shared State
     const [isProcessing, setIsProcessing] = useState(false);
+    const [processingMessage, setProcessingMessage] = useState("Reading the card's energy...");
     const [recognizedCard, setRecognizedCard] = useState<TarotCard | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     // Camera State
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -32,7 +34,6 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
 
     // Voice State
     const handleVoiceResult = (transcript: string) => {
-        setIsProcessing(false);
         const match = findBestMatch(transcript, deck);
         if (match) {
             setRecognizedCard(match);
@@ -41,17 +42,18 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
         }
     };
 
-    const { isListening, toggleListening } = useSpeechRecognition({
+    const { isListening, startListening, stopListening } = useSpeechRecognition({
         onResult: handleVoiceResult,
         onError: (error) => {
-            setIsProcessing(false);
             showToast(error);
         },
     });
     
     // Image Processing
     const processImage = async (base64Image: string) => {
+        setProcessingMessage("Reading the card's energy...");
         setIsProcessing(true);
+        setImagePreview(null); // Clear preview once processing starts
         setRecognizedCard(null);
         try {
             const cardName = await identifyCardFromImage(base64Image);
@@ -71,12 +73,19 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
     const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            setProcessingMessage("Preparing image...");
+            setIsProcessing(true);
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (typeof e.target?.result === 'string') {
-                    processImage(e.target.result);
+                    setImagePreview(e.target.result);
                 }
+                setIsProcessing(false);
             };
+            reader.onerror = () => {
+                showToast("Failed to read the selected file.");
+                setIsProcessing(false);
+            }
             reader.readAsDataURL(file);
         }
     };
@@ -105,16 +114,11 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
 
     const handleRetry = () => {
         setRecognizedCard(null);
-    };
-    
-    const handleVoiceToggle = () => {
-        if (!isListening) {
-            setIsProcessing(true);
-        } else {
-            setIsProcessing(false);
+        setImagePreview(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
-        toggleListening();
-    }
+    };
 
     // Camera Modal Logic
     const openCamera = async () => {
@@ -141,7 +145,6 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
       setIsCameraOpen(false);
     };
 
-
     const renderConfirmation = () => (
          <div className="text-center space-y-4 p-4 bg-bg/30 rounded-lg animate-fade-in">
             <p className="text-sub">I see:</p>
@@ -154,17 +157,27 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
         </div>
     );
     
+    const renderImagePreview = () => (
+        <div className="text-center space-y-4 p-4 bg-bg/30 rounded-lg animate-fade-in">
+            <p className="text-sub">Confirm your selection:</p>
+            <img src={imagePreview!} alt="Card preview" className="w-48 mx-auto rounded-lg shadow-lg" />
+            <div className="flex gap-4 justify-center">
+                <button onClick={() => processImage(imagePreview!)} className="flex-1 bg-accent text-accent-dark font-bold py-2 px-4 rounded-ui">Process Image</button>
+                <button onClick={handleRetry} className="flex-1 bg-border text-text font-bold py-2 px-4 rounded-ui">Choose Different</button>
+            </div>
+        </div>
+    );
+
     if (isProcessing) {
         return (
             <div className="flex justify-center items-center h-24">
-                <Spinner message={method === 'photo' ? "Reading the card's energy..." : 'Listening...'} />
+                <Spinner message={processingMessage} />
             </div>
         );
     }
     
-    if (recognizedCard) {
-        return renderConfirmation();
-    }
+    if (recognizedCard) return renderConfirmation();
+    if (imagePreview) return renderImagePreview();
 
     if (method === 'photo') {
         return (
@@ -186,21 +199,23 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
         return (
             <div className="text-center space-y-4 animate-fade-in">
                 <div className="text-center p-3 bg-bg/30 rounded-lg text-sub text-sm">
-                    Use your physical deck. Press the button below and clearly speak the name of the card you have drawn.
+                    Use your physical deck. Press and hold the button below, then clearly speak the name of the card you have drawn.
                 </div>
-                <p className="text-sub h-5">{isListening ? "Listening..." : " "}</p>
-                <button onClick={handleVoiceToggle} className={`mx-auto px-6 py-3 rounded-full transition-colors font-bold flex items-center justify-center gap-2 ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-border text-text'}`}>
+                <button
+                    onMouseDown={startListening}
+                    onMouseUp={stopListening}
+                    onMouseLeave={stopListening}
+                    onTouchStart={(e) => { e.preventDefault(); startListening(); }}
+                    onTouchEnd={stopListening}
+                    className={`mx-auto px-6 py-3 w-full max-w-xs rounded-ui transition-all duration-200 font-bold flex items-center justify-center gap-2 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                        isListening
+                        ? 'bg-red-600 text-white scale-105 shadow-lg'
+                        : 'bg-border text-text active:scale-105'
+                    }`}
+                >
                     <MicIcon className="w-5 h-5" />
-                    {isListening ? 'Stop' : 'Speak'}
+                    {isListening ? 'Listening...' : 'Press & Hold to Speak'}
                 </button>
-                <div className="text-left text-xs text-sub/80 p-3 bg-bg/20 rounded-lg space-y-1">
-                    <p><strong>Tips for best results:</strong></p>
-                    <ul className="list-disc list-inside">
-                        <li>Speak clearly and close to your microphone.</li>
-                        <li>Say only the name of the card, for example: "The High Priestess" or "Ace of Cups".</li>
-                        <li>If the wrong card is identified, simply click "Try Again" and repeat the name.</li>
-                    </ul>
-                </div>
             </div>
         );
     }
@@ -208,4 +223,4 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
     return null;
 };
 
-export default PhysicalDeckPanel;
+export default memo(PhysicalDeckPanel);

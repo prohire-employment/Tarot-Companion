@@ -162,4 +162,4 @@ const CardSelector: React.FC<CardSelectorProps> = ({
   );
 };
 
-export default CardSelector;
+export default React.memo(CardSelector);

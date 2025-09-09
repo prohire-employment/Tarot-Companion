@@ -56,4 +56,4 @@ const TagInput: React.FC<TagInputProps> = ({ tags, setTags }) => {
   );
 };
 
-export default TagInput;
+export default React.memo(TagInput);

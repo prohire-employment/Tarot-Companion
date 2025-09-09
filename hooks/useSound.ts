@@ -18,8 +18,16 @@ export const useSound = () => {
       if (!audioCache[soundName]) {
         audioCache[soundName] = new Audio(SOUNDS[soundName]);
       }
-      // play() returns a promise which can reject if the user hasn't interacted with the page yet.
-      audioCache[soundName]?.play().catch(e => console.error("Error playing sound:", e));
+      
+      const audio = audioCache[soundName];
+      if (audio) {
+        // Prevent sound from stuttering if called rapidly by resetting it
+        if (!audio.paused) {
+          audio.currentTime = 0;
+        }
+        // play() returns a promise which can reject if the user hasn't interacted with the page yet.
+        audio.play().catch(e => console.error("Error playing sound:", e));
+      }
     } catch (e) {
         console.error("Could not play sound", e);
     }

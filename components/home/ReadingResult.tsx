@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, memo } from 'react';
 import type { DrawnCard, Spread } from '../../types';
 import TagInput from './TagInput';
 import { useSound } from '../../hooks/useSound';
@@ -124,4 +125,4 @@ const ReadingResult: React.FC<ReadingResultProps> = ({
   );
 };
 
-export default ReadingResult;
+export default memo(ReadingResult);

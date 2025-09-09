@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { memo } from 'react';
 import type { Spread, DrawnCard, TarotCard } from '../../types';
 import { useSettingsStore } from '../../store/settingsStore';
 import { shuffleArray } from '../../lib/utils';
@@ -44,4 +45,4 @@ const DigitalDrawPanel: React.FC<DigitalDrawPanelProps> = ({ spread, deck, onDra
   );
 };
 
-export default DigitalDrawPanel;
+export default memo(DigitalDrawPanel);

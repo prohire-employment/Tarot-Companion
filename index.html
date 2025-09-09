@@ -80,6 +80,7 @@
     html {
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      scroll-behavior: smooth;
     }
     body {
       background-image: url('/public/background.jpg');
@@ -127,17 +128,26 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.1.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "react/": "https://esm.sh/react@^19.1.1/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.15.0",
-    "zustand": "https://esm.sh/zustand@^4.5.4",
-    "zustand/middleware": "https://esm.sh/zustand@^4.5.4/middleware",
-    "zustand/": "https://esm.sh/zustand@^5.0.8/"
+    "react": "https://esm.sh/react@19.0.0-rc.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0-rc.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@1.15.0",
+    "zustand": "https://esm.sh/zustand@4.5.4",
+    "zustand/middleware": "https://esm.sh/zustand@4.5.4/middleware",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "zustand/": "https://aistudiocdn.com/zustand@^5.0.8/"
   }
 }
 </script>

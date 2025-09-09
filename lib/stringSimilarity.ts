@@ -34,11 +34,11 @@ export function findBestMatch<T extends { name: string }>(
   items: T[],
   threshold: number = 0.6
 ): T | null {
-  if (!query) return null;
+  if (!query || items.length === 0) return null;
   const lowerQuery = query.toLowerCase();
   
   let bestMatch: T | null = null;
-  let minDistance = Infinity;
+  let highestSimilarity = -1;
 
   for (const item of items) {
     const itemNameLower = item.name.toLowerCase();
@@ -46,16 +46,13 @@ export function findBestMatch<T extends { name: string }>(
     
     // Normalize distance to a similarity score (0-1)
     const maxLength = Math.max(lowerQuery.length, itemNameLower.length);
-    const similarity = 1 - distance / maxLength;
+    const similarity = maxLength === 0 ? 1 : 1 - distance / maxLength;
 
-    if (distance < minDistance) {
-      minDistance = distance;
+    if (similarity > highestSimilarity) {
+      highestSimilarity = similarity;
       bestMatch = item;
     }
   }
   
-  // Check if the best match is good enough
-  const bestMatchSimilarity = 1 - minDistance / Math.max(lowerQuery.length, bestMatch?.name.toLowerCase().length || 1);
-
-  return bestMatchSimilarity >= threshold ? bestMatch : null;
+  return highestSimilarity >= threshold ? bestMatch : null;
 }

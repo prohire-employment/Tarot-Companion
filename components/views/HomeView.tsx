@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useReducer, useEffect } from 'react';
+
+import React, { useState, useMemo, useReducer, useEffect, useCallback } from 'react';
 import { useJournalStore } from '../../store/journalStore';
 import { useUiStore } from '../../store/uiStore';
 import { SPREADS } from '../../data/spreads';
 import { getInterpretation, generateCardImage } from '../../services/geminiService';
-import type { Spread, DrawnCard, JournalEntry, ReadingState, ReadingAction } from '../../types';
+import type { Spread, DrawnCard, JournalEntry, ReadingState, ReadingAction, TarotCard } from '../../types';
 import ReadingResult from '../home/ReadingResult';
 import Spinner from '../Spinner';
 import { useAlmanac } from '../../hooks/useAlmanac';
@@ -130,15 +131,22 @@ const HomeView: React.FC = () => {
             await useDeckStore.getState().loadDeck();
             const currentDeck = useDeckStore.getState().deck;
 
-            if (currentDeck.length === 0) {
+            if (!currentDeck || currentDeck.length === 0) {
                 showToast("Card deck could not be loaded. Please try again.");
                 return;
             }
 
             const dailySpread = SPREADS.find(s => s.id === 'single-card')!;
-            const shuffled = shuffleArray(currentDeck);
-            const cards = [{
-                card: shuffled[0],
+            const shuffled = shuffleArray<TarotCard>(currentDeck);
+            const drawnCard = shuffled[0];
+
+            if (!drawnCard) {
+                showToast("Could not draw a card from the deck.");
+                return;
+            }
+            
+            const cards: DrawnCard[] = [{
+                card: drawnCard,
                 isReversed: settings.includeReversals && Math.random() > 0.5,
             }];
             setIsDailyDrawModalOpen(false);
@@ -150,7 +158,7 @@ const HomeView: React.FC = () => {
         }
     };
 
-    const handleSaveToJournal = (impression: string, tags: string[]) => {
+    const handleSaveToJournal = useCallback((impression: string, tags: string[]) => {
         if (!state.interpretation || !state.spread) return;
 
         const newEntry: JournalEntry = {
@@ -167,7 +175,11 @@ const HomeView: React.FC = () => {
         addEntry(newEntry);
         showToast('Reading saved to journal!');
         dispatch({ type: 'RESET' });
-    };
+    }, [addEntry, showToast, state.drawnCards, state.interpretation, state.question, state.spread, todayISO]);
+
+    const handleReset = useCallback(() => {
+        dispatch({ type: 'RESET' });
+    }, []);
 
     const getLoadingMessage = () => {
         if (state.phase === 'generatingImages') {
@@ -183,34 +195,36 @@ const HomeView: React.FC = () => {
                 <p className="text-sub max-w-md mx-auto">Center your thoughts, take a breath, and let the cards offer their wisdom.</p>
             </div>
             
-            {entryForToday ? (
-                 <div className="bg-surface/70 rounded-card p-6 card-border shadow-main">
-                    <h3 className="text-xl font-bold text-text mb-4">Your Card of the Day</h3>
-                    <div className="flex flex-col md:flex-row items-center gap-6 text-left">
-                        <img 
-                            src={entryForToday.drawnCards[0].imageUrl || entryForToday.drawnCards[0].card.imageUrl} 
-                            alt={entryForToday.drawnCards[0].card.name} 
-                            className={`w-32 h-auto rounded-lg shadow-lg flex-shrink-0 ${entryForToday.drawnCards[0].isReversed ? 'transform rotate-180' : ''}`} 
-                        />
-                        <div>
-                            <p className="text-lg font-bold text-accent">{entryForToday.drawnCards[0].card.name}</p>
-                            <p className="text-sub italic text-sm mb-2">{entryForToday.interpretation.cards[0].meaning}</p>
-                            <button onClick={() => window.location.hash = 'journal'} className="font-sans text-accent underline text-sm hover:text-accent/80">View full reading in Journal</button>
+            <div className="bg-surface/70 rounded-card p-6 card-border shadow-main min-h-[230px] flex flex-col justify-center">
+                {entryForToday ? (
+                    <div className="animate-fade-in">
+                        <h3 className="text-xl font-bold text-text mb-4">Your Card of the Day</h3>
+                        <div className="flex flex-col md:flex-row items-center gap-6 text-left">
+                            <img 
+                                src={entryForToday.drawnCards[0].imageUrl || entryForToday.drawnCards[0].card.imageUrl} 
+                                alt={entryForToday.drawnCards[0].card.name} 
+                                className={`w-32 h-auto rounded-lg shadow-lg flex-shrink-0 ${entryForToday.drawnCards[0].isReversed ? 'transform rotate-180' : ''}`} 
+                            />
+                            <div>
+                                <p className="text-lg font-bold text-accent">{entryForToday.drawnCards[0].card.name}</p>
+                                <p className="text-sub italic text-sm mb-2">{entryForToday.interpretation.cards[0].meaning}</p>
+                                <a href="#journal" className="font-sans text-accent underline text-sm hover:text-accent/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">View full reading in Journal</a>
+                            </div>
                         </div>
                     </div>
-                </div>
-            ) : (
-                <div className="bg-surface/70 rounded-card p-6 card-border shadow-main">
-                    <h3 className="text-xl font-bold text-text mb-4">Daily Ritual</h3>
-                    <p className="text-sub mb-6">Begin with a single card for focus and guidance throughout your day.</p>
-                     <button 
-                        onClick={() => setIsDailyDrawModalOpen(true)} 
-                        className="w-full max-w-xs mx-auto bg-accent text-accent-dark font-bold py-3 px-8 rounded-ui transition-all duration-300 text-lg shadow-lg hover:shadow-glow hover:scale-105 transform"
-                    >
-                        Draw Card of the Day
-                    </button>
-                </div>
-            )}
+                ) : (
+                    <div className="animate-fade-in">
+                        <h3 className="text-xl font-bold text-text mb-4">Daily Ritual</h3>
+                        <p className="text-sub mb-6">Begin with a single card for focus and guidance throughout your day.</p>
+                        <button 
+                            onClick={() => setIsDailyDrawModalOpen(true)} 
+                            className="w-full max-w-xs mx-auto bg-accent text-accent-dark font-bold py-3 px-8 rounded-ui transition-all duration-300 text-lg shadow-lg hover:shadow-glow hover:scale-105 transform"
+                        >
+                            Draw Card of the Day
+                        </button>
+                    </div>
+                )}
+            </div>
 
             <div className="bg-surface/70 rounded-card p-6 card-border">
                 <h3 className="text-xl font-bold text-text mb-4">Deeper Inquiry</h3>
@@ -254,7 +268,7 @@ const HomeView: React.FC = () => {
                         spread={state.spread}
                         question={state.question}
                         onSave={handleSaveToJournal}
-                        onReset={() => dispatch({ type: 'RESET' })}
+                        onReset={handleReset}
                     />
                 );
             case 'dashboard':

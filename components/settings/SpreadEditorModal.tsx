@@ -21,7 +21,7 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
   const [description, setDescription] = useState('');
   const [positions, setPositions] = useState<SpreadPosition[]>([defaultPosition()]);
   const [cardCountInput, setCardCountInput] = useState('1');
-  const [cardCountError, setCardCountError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useModalFocus({ isOpen, onClose, modalRef });
 
@@ -39,7 +39,7 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
         setPositions([defaultPosition()]);
         setCardCountInput('1');
       }
-      setCardCountError(null); // Reset error on open
+      setErrors({}); // Reset errors on open
     }
   }, [isOpen, spreadToEdit]);
 
@@ -49,43 +49,49 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
     const newPositions = [...positions];
     newPositions[index] = { ...newPositions[index], [field]: value };
     setPositions(newPositions);
+    if (value.trim()) {
+        const newErrors = {...errors};
+        delete newErrors[`pos-${field}-${index}`];
+        setErrors(newErrors);
+    }
   };
 
   const handleCardCountChange = (value: string) => {
     setCardCountInput(value);
     const num = parseInt(value, 10);
+    const newErrors = {...errors};
     
     if (isNaN(num) || num < 1) {
-        setCardCountError("At least 1 card is required.");
-        return;
+        newErrors.cardCount = "At least 1 card is required.";
+    } else if (num > 12) {
+        newErrors.cardCount = "Maximum of 12 cards allowed.";
+    } else {
+        delete newErrors.cardCount;
+        const currentCount = positions.length;
+        if (num > currentCount) {
+            const newPositions = [...positions, ...Array(num - currentCount).fill(null).map(defaultPosition)];
+            setPositions(newPositions);
+        } else if (num < currentCount) {
+            setPositions(positions.slice(0, num));
+        }
     }
-    if (num > 12) {
-        setCardCountError("Maximum of 12 cards allowed.");
-        return;
-    }
-    
-    setCardCountError(null); // Clear error if valid
-    
-    const currentCount = positions.length;
-    if (num > currentCount) {
-        const newPositions = [...positions, ...Array(num - currentCount).fill(null).map(defaultPosition)];
-        setPositions(newPositions);
-    } else if (num < currentCount) {
-        setPositions(positions.slice(0, num));
-    }
+    setErrors(newErrors);
   };
+  
+  const validate = (): boolean => {
+      const newErrors: Record<string, string> = {};
+      if (!name.trim()) newErrors.name = 'Spread name is required.';
+      positions.forEach((pos, index) => {
+          if (!pos.title.trim()) newErrors[`pos-title-${index}`] = 'Title is required.';
+          if (!pos.description.trim()) newErrors[`pos-description-${index}`] = 'Description is required for an accurate AI reading.';
+      });
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0 && !errors.cardCount;
+  }
 
   const handleSave = () => {
-    if (!name.trim()) {
-      showToast('Spread name is required.');
-      return;
-    }
-    if (positions.some(p => !p.title.trim())) {
-      showToast('All position titles are required.');
-      return;
-    }
-    if (cardCountError) {
-      showToast('Please correct the number of cards.');
+    if (!validate()) {
+      showToast('Please fill out all required fields.');
       return;
     }
 
@@ -94,7 +100,7 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
       name: name.trim(),
       description: description.trim(),
       cardCount: positions.length,
-      positions,
+      positions: positions.map(p => ({ title: p.title.trim(), description: p.description.trim() })),
     };
     
     if (spreadToEdit) {
@@ -107,7 +113,7 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
     onClose();
   };
 
-  const isSaveDisabled = !!cardCountError || !name.trim() || positions.some(p => !p.title.trim());
+  const isSaveDisabled = Object.keys(errors).length > 0 || !name.trim() || positions.some(p => !p.title.trim() || !p.description.trim());
 
   return (
     <div
@@ -132,7 +138,8 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
         <div className="space-y-4 overflow-y-auto pr-2 flex-grow no-scrollbar">
           <div className="font-sans">
             <label htmlFor="spread-name" className="font-bold text-sub block mb-1">Spread Name</label>
-            <input id="spread-name" type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-bg/50 border border-border rounded-ui p-2 text-text" />
+            <input id="spread-name" type="text" value={name} onChange={e => setName(e.target.value)} className={`w-full bg-bg/50 border rounded-ui p-2 text-text transition-colors ${errors.name ? 'border-red-500/70 focus:ring-1 focus:ring-red-500' : 'border-border focus:ring-accent'}`} />
+            {errors.name && <p className="text-red-400 text-sm mt-1">{errors.name}</p>}
           </div>
           <div className="font-sans">
             <label htmlFor="spread-desc" className="font-bold text-sub block mb-1">Description</label>
@@ -147,11 +154,11 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
                 onChange={e => handleCardCountChange(e.target.value)} 
                 min="1" 
                 max="12" 
-                className={`w-24 bg-bg/50 border rounded-ui p-2 text-text transition-colors ${cardCountError ? 'border-red-500/70 focus:ring-1 focus:ring-red-500' : 'border-border focus:ring-accent'}`}
-                aria-invalid={!!cardCountError}
+                className={`w-24 bg-bg/50 border rounded-ui p-2 text-text transition-colors ${errors.cardCount ? 'border-red-500/70 focus:ring-1 focus:ring-red-500' : 'border-border focus:ring-accent'}`}
+                aria-invalid={!!errors.cardCount}
                 aria-describedby="card-count-error"
             />
-             {cardCountError && <p id="card-count-error" className="text-red-400 text-sm mt-1">{cardCountError}</p>}
+             {errors.cardCount && <p id="card-count-error" className="text-red-400 text-sm mt-1">{errors.cardCount}</p>}
           </div>
 
           <h3 className="text-xl font-bold text-accent pt-2 border-t border-border">Positions</h3>
@@ -161,11 +168,11 @@ const SpreadEditorModal: React.FC<SpreadEditorModalProps> = ({ isOpen, onClose, 
                 <p className="text-sub font-bold mb-2">Position {index + 1}</p>
                  <div>
                     <label htmlFor={`pos-title-${index}`} className="text-xs font-bold text-sub">Title</label>
-                    <input id={`pos-title-${index}`} type="text" value={pos.title} onChange={e => handlePositionChange(index, 'title', e.target.value)} className="w-full bg-bg/80 border border-border rounded-md p-2 text-text text-sm" />
+                    <input id={`pos-title-${index}`} type="text" value={pos.title} onChange={e => handlePositionChange(index, 'title', e.target.value)} className={`w-full bg-bg/80 border rounded-md p-2 text-text text-sm transition-colors ${errors[`pos-title-${index}`] ? 'border-red-500/70' : 'border-border'}`} />
                 </div>
                 <div className="mt-2">
                     <label htmlFor={`pos-desc-${index}`} className="text-xs font-bold text-sub">Description</label>
-                    <input id={`pos-desc-${index}`} type="text" value={pos.description} onChange={e => handlePositionChange(index, 'description', e.target.value)} className="w-full bg-bg/80 border border-border rounded-md p-2 text-text text-sm" />
+                    <input id={`pos-desc-${index}`} type="text" value={pos.description} onChange={e => handlePositionChange(index, 'description', e.target.value)} className={`w-full bg-bg/80 border rounded-md p-2 text-text text-sm transition-colors ${errors[`pos-description-${index}`] ? 'border-red-500/70' : 'border-border'}`} />
                 </div>
               </div>
             ))}
