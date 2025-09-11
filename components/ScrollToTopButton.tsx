@@ -1,7 +1,9 @@
+
+
 import React from 'react';
 import { useScrollPosition } from '../hooks/useScrollPosition';
 
-const ScrollToTopButton: React.FC = () => {
+export const ScrollToTopButton: React.FC = () => {
   const isScrolled = useScrollPosition(200); // Show button after scrolling 200px
 
   const scrollToTop = () => {
@@ -25,5 +27,3 @@ const ScrollToTopButton: React.FC = () => {
     </button>
   );
 };
-
-export default ScrollToTopButton;

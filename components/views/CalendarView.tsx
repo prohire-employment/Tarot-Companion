@@ -89,6 +89,18 @@ const CalendarView: React.FC = () => {
 
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  const formatSabbatDate = (date: Date): string => {
+    return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  };
+  
+  const daysUntil = (date: Date): number => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffTime = date.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   return (
     <>
       <div className="space-y-6 font-serif">
@@ -133,6 +145,39 @@ const CalendarView: React.FC = () => {
               <p className="text-lg text-text">{almanac.holiday || '—'}</p>
             </div>
           </div>
+        </section>
+
+        <section className="bg-surface rounded-card shadow-main p-6 card-border">
+          <h3 className="text-xl font-bold text-accent mb-4 text-center">Upcoming Sabbats</h3>
+          {almanac.upcomingHolidays.length > 0 ? (
+            <ul className="space-y-3 font-sans">
+              {almanac.upcomingHolidays.map(holiday => {
+                const daysRemaining = daysUntil(holiday.date);
+                const isToday = daysRemaining === 0;
+
+                return (
+                  <li key={holiday.name} className="flex justify-between items-center bg-bg/40 p-3 rounded-lg">
+                    <div>
+                      <p className="font-bold text-text">{holiday.name}</p>
+                      <p className="text-sm text-sub">{formatSabbatDate(holiday.date)}</p>
+                    </div>
+                    <div className="text-right">
+                      {isToday ? (
+                         <span className="text-sm font-bold text-accent">Today!</span>
+                      ) : (
+                        <>
+                          <p className="font-bold text-text">{daysRemaining}</p>
+                          <p className="text-xs text-sub">day{daysRemaining !== 1 ? 's' : ''} away</p>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sub text-center italic">Could not determine upcoming holidays.</p>
+          )}
         </section>
       </div>
 

@@ -1,8 +1,8 @@
 # Tarot Companion
 
-A calm, sacred, journal-like app for daily Tarot. It logs your card draws, offers AI-powered layered meanings (Outer, Inner, Whispers), and adapts to the current lunar phase, season, and Wiccan/occult holidays. It also encourages routine with a daily reminder.
+A calm, sacred, journal-like app for daily Tarot. It logs your card draws, offers AI-powered layered meanings, and adapts to the current lunar phase, season, and Wiccan/occult holidays. It also encourages routine with a daily reminder.
 
-This project is a single-page application built with React, using modern browser features and requiring no build step.
+This project is a single-page application built with React, TypeScript, and modern browser features, requiring no build step.
 
 ## Features
 
@@ -15,8 +15,8 @@ This project is a single-page application built with React, using modern browser
 
 ## Tech Stack
 
-- **Framework:** React
-- **Styling:** Tailwind CSS
+- **Framework/Language:** React & TypeScript
+- **Styling:** Tailwind CSS (via CDN)
 - **State Management:** Zustand
 - **AI Integration:** Google Gemini API
 - **Deployment:** Static file hosting (e.g., Netlify, GitHub Pages)
@@ -27,7 +27,7 @@ This project is configured to run without a build step.
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/tarot-companion.git
+    git clone https://github.com/ai-builder/tarot-companion.git
     cd tarot-companion
     ```
 
@@ -64,3 +64,7 @@ The application requires a Google Gemini API key to function. This key is loaded
     - **Key:** `API_KEY`
     - **Value:** Paste your Google Gemini API key here.
 7.  Deploy your site. Netlify will now serve your static files and make the API key available to the application.
+
+## Contributing
+
+Found a bug or have a feature request? Please [open an issue](https://github.com/ai-builder/tarot-companion/issues) on our GitHub repository. The more details you can provide, the better!

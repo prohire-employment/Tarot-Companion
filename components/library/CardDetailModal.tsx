@@ -18,6 +18,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ isOpen, onClose, card
 
   const { imageCache } = useCardImageStore();
   const { entries } = useJournalStore();
+  const { setJournalFilter } = useUiStore();
 
   const journalAppearances = useMemo(() => {
     if (!card) return [];
@@ -29,6 +30,12 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ isOpen, onClose, card
           spread: entry.spread.name,
       }));
   }, [card, entries]);
+
+  const handleViewEntry = (entryId: string) => {
+    setJournalFilter({ type: 'id', value: entryId });
+    window.location.hash = 'journal';
+    onClose();
+  };
 
   if (!isOpen || !card) return null;
 
@@ -83,7 +90,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ isOpen, onClose, card
                         <ul className="list-disc list-inside text-sub text-sm space-y-1 mt-1">
                             {journalAppearances.map(entry => (
                                 <li key={entry.id}>
-                                    <button onClick={() => { onClose(); window.location.hash = 'journal'; }} className="underline hover:text-text">
+                                    <button onClick={() => handleViewEntry(entry.id)} className="underline hover:text-text text-left">
                                         {entry.date}: {entry.spread}
                                     </button>
                                 </li>

@@ -32,7 +32,7 @@ const Spinner: React.FC<SpinnerProps> = ({ message = "Summoning insights..." }) 
   return (
     <div className="flex flex-col items-center justify-center gap-4" role="status" aria-label="Loading">
       <StarIcon className="w-12 h-12 text-accent animate-pulse-soft" />
-      {currentMessage && <span key={currentMessage} className="text-sub text-center animate-fade-in">{currentMessage}</span>}
+      {currentMessage && <span key={currentMessage} className="text-sub text-center animate-fade-in" aria-live="polite">{currentMessage}</span>}
     </div>
   );
 };

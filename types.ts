@@ -1,7 +1,7 @@
 // Foundational Types
 export type Arcana = 'Major' | 'Minor';
 export type Suit = 'None' | 'Wands' | 'Cups' | 'Swords' | 'Pentacles';
-export type View = 'home' | 'journal' | 'calendar' | 'settings' | 'library';
+export type View = 'home' | 'journal' | 'calendar' | 'settings' | 'library' | 'about';
 export type DeckType = 'full' | 'major' | 'minor';
 
 // Data Structures
@@ -58,13 +58,13 @@ export interface AppSettings {
   notificationsEnabled: boolean;
   deckType: DeckType;
   includeReversals: boolean;
-  soundsEnabled: boolean;
 }
 
 export interface AlmanacInfo {
   lunarPhase: string;
   season: string;
   holiday: string | null;
+  upcomingHolidays: { name: string; date: Date }[];
 }
 
 export interface ManualCardState {
@@ -72,9 +72,8 @@ export interface ManualCardState {
   reversed: boolean;
 }
 
-export type JournalFilter = {
-    dateISO: string;
-}
+export type JournalFilter = { type: 'date'; value: string } | { type: 'id'; value: string };
+
 
 // State Reducer for HomeView Reading Flow
 export type ReadingPhase = 'dashboard' | 'generatingImages' | 'loading' | 'result' | 'imageError' | 'interpretationError';
@@ -98,6 +97,7 @@ export type ReadingAction =
     | { type: 'INTERPRETATION_SUCCESS'; payload: { interpretation: ReadingState['interpretation'] } }
     | { type: 'INTERPRETATION_FAILURE'; payload: { error: string } }
     | { type: 'RETRY_IMAGE_GENERATION' }
+    | { type: 'RETRY_INTERPRETATION' }
     | { type: 'CONTINUE_WITHOUT_ART' }
     | { type: 'RESET' };
 

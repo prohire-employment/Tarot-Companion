@@ -11,6 +11,13 @@ import { MAX_CUSTOM_SPREADS } from '../../constants';
 import { validateJournalImport } from '../../lib/validation';
 import { getLocalISO_Date } from '../../lib/utils';
 
+// Simple chevron icon for navigation links
+const ChevronRightIcon: React.FC<{className?: string}> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+    </svg>
+);
+
 const SettingsView: React.FC = () => {
   const { settings, setSettings } = useSettingsStore();
   const { entries, setEntries } = useJournalStore();
@@ -19,7 +26,10 @@ const SettingsView: React.FC = () => {
   const { clearCache } = useCardImageStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [localSettings, setLocalSettings] = useState<Omit<AppSettings, 'soundsEnabled'>>(settings);
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+  const [isSavingReminders, setIsSavingReminders] = useState(false);
+
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isClearCacheConfirmOpen, setIsClearCacheConfirmOpen] = useState(false);
   const fileToImport = useRef<File | null>(null);
@@ -36,15 +46,19 @@ const SettingsView: React.FC = () => {
   }, [settings]);
 
   const handlePreferencesSave = () => {
+    setIsSavingPrefs(true);
     setSettings(prev => ({
       ...prev,
       includeReversals: localSettings.includeReversals,
-      soundsEnabled: localSettings.soundsEnabled,
     }));
-    showToast('Reading preferences saved!');
+    setTimeout(() => {
+        showToast('Reading preferences saved!');
+        setIsSavingPrefs(false);
+    }, 400);
   };
 
   const handleRemindersSave = async () => {
+    setIsSavingReminders(true);
     if (localSettings.notificationsEnabled && 'Notification' in window && Notification.permission !== 'granted') {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
@@ -60,6 +74,9 @@ const SettingsView: React.FC = () => {
        setSettings(localSettings);
        showToast('Reminder settings saved.');
     }
+     setTimeout(() => {
+        setIsSavingReminders(false);
+    }, 400);
   };
 
   const handleExport = () => {
@@ -175,21 +192,12 @@ const SettingsView: React.FC = () => {
               <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
-          <div className="flex items-center justify-between">
-            <label htmlFor="enableSounds" className="text-text">UI Sounds</label>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                id="enableSounds"
-                type="checkbox"
-                checked={localSettings.soundsEnabled}
-                onChange={e => setLocalSettings(prev => ({ ...prev, soundsEnabled: e.target.checked }))}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-            </label>
-          </div>
-           <button onClick={handlePreferencesSave} className="w-full bg-accent text-accent-dark font-bold py-2 px-4 rounded-ui mt-2 hover:opacity-90 transition-opacity">
-            Save Preferences
+           <button 
+              onClick={handlePreferencesSave} 
+              disabled={isSavingPrefs}
+              className="w-full bg-accent text-accent-dark font-bold py-2 px-4 rounded-ui mt-2 hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-wait"
+            >
+            {isSavingPrefs ? 'Saving...' : 'Save Preferences'}
           </button>
         </div>
       </section>
@@ -220,8 +228,12 @@ const SettingsView: React.FC = () => {
               <div className="w-11 h-6 bg-border peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
             </label>
           </div>
-          <button onClick={handleRemindersSave} className="w-full bg-accent text-accent-dark font-bold py-2 px-4 rounded-ui mt-4 hover:opacity-90 transition-opacity">
-            Save Reminder Settings
+          <button 
+            onClick={handleRemindersSave} 
+            disabled={isSavingReminders}
+            className="w-full bg-accent text-accent-dark font-bold py-2 px-4 rounded-ui mt-4 hover:opacity-90 transition-opacity disabled:opacity-70 disabled:cursor-wait"
+            >
+            {isSavingReminders ? 'Saving...' : 'Save Reminder Settings'}
           </button>
         </div>
       </section>
@@ -303,6 +315,19 @@ const SettingsView: React.FC = () => {
                 </p>
             </div>
         </div>
+      </section>
+
+      <section className="bg-surface rounded-card shadow-main p-6 card-border">
+          <h3 className="text-xl font-bold text-accent mb-4">About</h3>
+          <div className="font-sans">
+              <a 
+                  href="#about"
+                  className="flex justify-between items-center w-full bg-bg/40 p-4 rounded-ui hover:bg-border/60 transition-colors"
+              >
+                  <span className="font-medium text-text">About Tarot Companion</span>
+                  <ChevronRightIcon className="w-5 h-5 text-sub" />
+              </a>
+          </div>
       </section>
     </div>
 

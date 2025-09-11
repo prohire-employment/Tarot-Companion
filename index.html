@@ -1,158 +1,82 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#100f14">
-  <title>Tarot Companion</title>
-  <link rel="icon" href="/public/favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lora:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            bg: '#100f14',
-            surface: '#1c1b22',
-            text: '#f0eef4',
-            sub: '#a09aa8',
-            accent: '#e0c483',
-            border: '#302e38',
-            'accent-dark': '#1a1205',
-          },
-          fontFamily: {
-            serif: ['Lora', 'Georgia', 'ui-serif', 'serif'],
-            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-          },
-          borderRadius: {
-            'card': '24px',
-            'ui': '12px',
-          },
-          boxShadow: {
-            'main': '0 8px 30px rgba(0,0,0,.35)',
-            'glow': '0 0 25px rgba(224, 196, 131, 0.3), 0 0 10px rgba(224, 196, 131, 0.2)',
-            'inset': 'inset 0 2px 4px 0 rgba(0,0,0,.1)',
-          },
-          transitionTimingFunction: {
-            'soft': 'cubic-bezier(0.4, 0, 0.2, 1)',
-          },
-          animation: {
-            'fade-in': 'fadeIn 500ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-            'flip-in': 'flipIn 600ms cubic-bezier(0.4, 0, 0.2, 1) forwards',
-            'shimmer-fast': 'shimmerFast 1.5s ease-in-out infinite',
-            'pulse-soft': 'pulseSoft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          },
-          keyframes: {
-            fadeIn: {
-              '0%': { opacity: 0, transform: 'translateY(10px)' },
-              '100%': { opacity: 1, transform: 'translateY(0px)' },
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tarot Companion</title>
+    <link rel="icon" href="/public/favicon.svg" type="image/svg+xml">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/public/styles.css" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'bg': '#100f14',
+                        'surface': '#1c1b22',
+                        'border': '#302e38',
+                        'text': '#e0e0e0',
+                        'sub': '#a0a0a0',
+                        'accent': '#e0c483',
+                        'accent-dark': '#1c1b22',
+                    },
+                    fontFamily: {
+                        sans: ['ui-sans-serif', 'system-ui', 'sans-serif'],
+                        serif: ['"Times New Roman"', 'serif'],
+                    },
+                    borderRadius: {
+                        'ui': '0.5rem',
+                        'card': '0.75rem',
+                    },
+                    boxShadow: {
+                        'main': '0 4px 15px rgba(0, 0, 0, 0.2)',
+                        'glow': '0 0 15px rgba(224, 196, 131, 0.4)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'pulse-soft': 'pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'shimmer-fast': 'shimmer 1.5s infinite linear',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        'pulse-soft': {
+                            '0%, 100%': { opacity: '0.7' },
+                            '50%': { opacity: '1' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' },
+                        }
+                    },
+                    transitionTimingFunction: {
+                       'soft': 'cubic-bezier(0.4, 0, 0.2, 1)',
+                    },
+                },
             },
-            flipIn: {
-              '0%': { transform: 'perspective(800px) rotateY(90deg)', opacity: 0 },
-              '100%': { transform: 'perspective(800px) rotateY(0deg)', opacity: 1 },
-            },
-            shimmer: {
-                '0%': { 'background-position': '0% 50%' },
-                '50%': { 'background-position': '100% 50%' },
-                '100%': { 'background-position': '0% 50%' },
-            },
-            shimmerFast: {
-              '0%': { backgroundPosition: '-200% 0' },
-              '100%': { backgroundPosition: '200% 0' },
-            },
-            pulseSoft: {
-              '0%, 100%': { opacity: 1, transform: 'scale(1)' },
-              '50%': { opacity: 0.7, transform: 'scale(0.97)' },
-            },
-          }
-        },
-      },
-    }
-  </script>
-  <style>
-    :root {
-      --transition-fast: 200ms var(--ease-soft);
-      --transition-medium: 350ms var(--ease-soft);
-    }
-    html {
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      scroll-behavior: smooth;
-    }
-    body {
-      background-image: url('/public/background.jpg');
-      background-size: cover;
-      background-position: center center;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
-      background-color: #100f14;
-    }
-    ::-webkit-scrollbar {
-      width: 10px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #100f14;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #302e38;
-      border-radius: 5px;
-      border: 2px solid #100f14;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #4a4755;
-    }
-    .segmented-control button.active {
-      box-shadow: 0 2px 10px rgba(0,0,0,.2);
-    }
-    .card-border {
-      position: relative;
-      background-clip: padding-box;
-      border: solid 1px transparent;
-    }
-    .card-border::before {
-      content: '';
-      position: absolute;
-      top: 0; right: 0; bottom: 0; left: 0;
-      z-index: -1;
-      margin: -1px;
-      border-radius: inherit;
-      background: linear-gradient(160deg, rgba(224, 196, 131, 0.2), rgba(48, 46, 56, 0.2), rgba(224, 196, 131, 0.2));
-    }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-      }
-    }
-  </style>
-<script type="importmap">
+        };
+    </script>
+    <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@19.0.0-rc.0",
-    "react-dom/client": "https://esm.sh/react-dom@19.0.0-rc.0/client",
-    "@google/genai": "https://esm.sh/@google/genai@1.15.0",
-    "zustand": "https://esm.sh/zustand@4.5.4",
-    "zustand/middleware": "https://esm.sh/zustand@4.5.4/middleware",
+    "react": "https://esm.sh/react@18.3.1",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "zustand": "https://esm.sh/zustand@4.5.2",
+    "zustand/middleware": "https://esm.sh/zustand@4.5.2/middleware",
+    "@google/genai": "https://esm.sh/@google/genai@0.12.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "zustand/": "https://aistudiocdn.com/zustand@^5.0.8/"
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
-<body class="text-text font-sans">
-  <div id="root"></div>
+<body>
+    <div id="app-container"></div>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

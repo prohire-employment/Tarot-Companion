@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useDeckStore } from '../../store/deckStore';
 import CardDetailModal from '../library/CardDetailModal';
 import type { TarotCard } from '../../types';
@@ -11,11 +11,7 @@ const LibraryView: React.FC = () => {
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [selectedCard, setSelectedCard] = useState<TarotCard | null>(null);
 
-    const { deck, isLoading, error, loadDeck } = useDeckStore();
-
-    useEffect(() => {
-        loadDeck();
-    }, [loadDeck]);
+    const { deck, isLoading, error } = useDeckStore();
 
     const filteredDeck = useMemo(() => {
         if (!deck) return [];
@@ -33,7 +29,7 @@ const LibraryView: React.FC = () => {
     }, []);
     
     const renderContent = () => {
-        if (isLoading) {
+        if (isLoading && deck.length === 0) {
             return (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
                     {Array.from({ length: 18 }).map((_, index) => (

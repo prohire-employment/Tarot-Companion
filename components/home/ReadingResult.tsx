@@ -2,7 +2,6 @@
 import React, { useState, memo } from 'react';
 import type { DrawnCard, Spread } from '../../types';
 import TagInput from './TagInput';
-import { useSound } from '../../hooks/useSound';
 
 interface ReadingResultProps {
   drawnCards: DrawnCard[];
@@ -33,10 +32,8 @@ const ReadingResult: React.FC<ReadingResultProps> = ({
   const [impression, setImpression] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [view, setView] = useState<'interpretation' | 'journal'>('interpretation');
-  const { playSound } = useSound();
 
   const handleSaveClick = () => {
-    playSound('save');
     onSave(impression.trim(), tags);
   };
   
@@ -72,9 +69,12 @@ const ReadingResult: React.FC<ReadingResultProps> = ({
               <button onClick={() => setView('interpretation')} className="flex-1 bg-border text-text font-bold py-2 px-4 rounded-ui hover:bg-border/70 transition-colors">
                 Back
               </button>
-              <button onClick={handleSaveClick} className="flex-1 bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-glow transform transition-all duration-300">
+              <button 
+                onClick={handleSaveClick} 
+                className="flex-1 bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui text-lg flex items-center justify-center gap-2 shadow-lg hover:shadow-glow transform transition-all duration-300 hover:scale-105 active:scale-100"
+              >
                 <BookmarkIcon className="w-5 h-5" />
-                Save Reading
+                Save
               </button>
           </div>
         </section>

@@ -1,4 +1,6 @@
 
+
+
 import React, { useEffect, useState } from 'react';
 
 interface ToastProps {
@@ -7,7 +9,7 @@ interface ToastProps {
   duration?: number;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, onClose, duration = 3000 }) => {
+export const Toast: React.FC<ToastProps> = ({ message, onClose, duration = 3000 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -38,5 +40,3 @@ const Toast: React.FC<ToastProps> = ({ message, onClose, duration = 3000 }) => {
     </div>
   );
 };
-
-export default Toast;

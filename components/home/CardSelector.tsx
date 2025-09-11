@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { TarotCard } from '../../types';
 import { SuitIcon } from '../icons/SuitIcons';
 
@@ -63,13 +63,13 @@ const CardSelector: React.FC<CardSelectorProps> = ({
     }
   }, [highlightedIndex]);
 
-  const handleSelect = (cardId: string) => {
+  const handleSelect = useCallback((cardId: string) => {
     onValueChange(cardId);
     setSearchTerm('');
     setIsOpen(false);
-  };
+  }, [onValueChange]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setHighlightedIndex(prev => (prev + 1) % filteredDeck.length);
@@ -84,7 +84,9 @@ const CardSelector: React.FC<CardSelectorProps> = ({
     } else if (e.key === 'Escape') {
       setIsOpen(false);
     }
-  };
+  }, [filteredDeck, highlightedIndex, handleSelect]);
+  
+  const highlightedItemId = highlightedIndex >= 0 ? `card-option-${filteredDeck[highlightedIndex].id}` : undefined;
 
   return (
     <div className="space-y-2 relative" ref={wrapperRef}>
@@ -104,6 +106,7 @@ const CardSelector: React.FC<CardSelectorProps> = ({
           className={`fill-current h-4 w-4 transform transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
+          aria-hidden="true"
         >
           <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
         </svg>
@@ -123,10 +126,16 @@ const CardSelector: React.FC<CardSelectorProps> = ({
               onKeyDown={handleKeyDown}
               placeholder="Search for a card..."
               className="w-full bg-bg/50 border border-border rounded-md p-2 text-text placeholder-sub/70 focus:ring-2 focus:ring-accent"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={isOpen}
+              aria-controls="card-listbox"
+              aria-activedescendant={highlightedItemId}
             />
           </div>
           <ul
             ref={listRef}
+            id="card-listbox"
             className="max-h-60 overflow-y-auto"
             role="listbox"
           >
@@ -137,6 +146,7 @@ const CardSelector: React.FC<CardSelectorProps> = ({
                 return (
                   <li
                     key={card.id}
+                    id={`card-option-${card.id}`}
                     onClick={() => handleSelect(card.id)}
                     onMouseEnter={() => setHighlightedIndex(index)}
                     role="option"

@@ -1,10 +1,9 @@
-
-import React, { useState, useMemo, useReducer, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useJournalStore } from '../../store/journalStore';
 import { useUiStore } from '../../store/uiStore';
 import { SPREADS } from '../../data/spreads';
 import { getInterpretation, generateCardImage } from '../../services/geminiService';
-import type { Spread, DrawnCard, JournalEntry, ReadingState, ReadingAction, TarotCard } from '../../types';
+import type { Spread, DrawnCard, JournalEntry, TarotCard } from '../../types';
 import ReadingResult from '../home/ReadingResult';
 import Spinner from '../Spinner';
 import { useAlmanac } from '../../hooks/useAlmanac';
@@ -14,58 +13,29 @@ import DailyDrawModal from '../home/DailyDrawModal';
 import { useDeckStore } from '../../store/deckStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { shuffleArray, getLocalISO_Date } from '../../lib/utils';
-
-const initialState: ReadingState = {
-    phase: 'dashboard',
-    drawnCards: [],
-    interpretation: null,
-    spread: null,
-    question: '',
-    error: null,
-};
-
-function readingReducer(state: ReadingState, action: ReadingAction): ReadingState {
-    switch (action.type) {
-        case 'START_READING':
-            return {
-                ...initialState,
-                phase: 'generatingImages',
-                drawnCards: action.payload.cards,
-                spread: action.payload.spread,
-                question: action.payload.question,
-            };
-        case 'IMAGE_GENERATION_SUCCESS':
-            return {
-                ...state,
-                phase: 'loading',
-                drawnCards: action.payload.cardsWithImages,
-                error: null,
-            };
-        case 'IMAGE_GENERATION_FAILURE':
-            return { ...state, phase: 'imageError', error: action.payload.error };
-        case 'INTERPRETATION_SUCCESS':
-            return { ...state, phase: 'result', interpretation: action.payload.interpretation, error: null };
-        case 'INTERPRETATION_FAILURE':
-            return { ...state, phase: 'interpretationError', error: action.payload.error };
-        case 'RETRY_IMAGE_GENERATION':
-             return { ...state, phase: 'generatingImages', error: null };
-        case 'CONTINUE_WITHOUT_ART':
-            return { ...state, phase: 'loading', error: null };
-        case 'RESET':
-            return initialState;
-        default:
-            return state;
-    }
-}
+import { useReadingStore } from '../../store/readingStore';
 
 const HomeView: React.FC = () => {
     // Stores & Hooks
     const { entries, addEntry } = useJournalStore();
     const { imageCache, addImageToCache } = useCardImageStore();
-    const { showToast } = useUiStore();
+    const { showToast, setJournalFilter } = useUiStore();
     const { settings } = useSettingsStore();
+    const { deck } = useDeckStore();
     const almanacInfo = useAlmanac();
-    const [state, dispatch] = useReducer(readingReducer, initialState);
+
+    const {
+        phase, drawnCards, interpretation, spread, question, error,
+        startReading: storeStartReading,
+        setImageGenerationSuccess,
+        setImageGenerationFailure,
+        setInterpretationSuccess,
+        setInterpretationFailure,
+        retryImageGeneration,
+        retryInterpretation,
+        continueWithoutArt,
+        resetReading
+    } = useReadingStore();
 
     // Local UI State
     const [isDailyDrawModalOpen, setIsDailyDrawModalOpen] = useState(false);
@@ -73,8 +43,11 @@ const HomeView: React.FC = () => {
     const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
     
     // Memos
-    const todayISO = getLocalISO_Date();
-    const entryForToday = useMemo(() => entries.find(e => e.dateISO === todayISO), [entries, todayISO]);
+    const todayISOForDashboard = getLocalISO_Date();
+    const dailyDrawForToday = useMemo(
+        () => entries.find(e => e.dateISO === todayISOForDashboard && e.spread.id === 'single-card'),
+        [entries, todayISOForDashboard]
+    );
 
     // Async Effects for State Machine
     useEffect(() => {
@@ -89,55 +62,49 @@ const HomeView: React.FC = () => {
                     }
                     cardsWithImages.push({ ...drawnCard, imageUrl });
                 }
-                dispatch({ type: 'IMAGE_GENERATION_SUCCESS', payload: { cardsWithImages } });
+                setImageGenerationSuccess({ cardsWithImages });
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'An unknown error occurred while creating card art.';
-                dispatch({ type: 'IMAGE_GENERATION_FAILURE', payload: { error: message } });
+                setImageGenerationFailure({ error: message });
             }
         };
 
-        const processInterpretation = async (cards: DrawnCard[], spread: Spread, question: string) => {
+        const processInterpretation = async (cards: DrawnCard[], currentSpread: Spread, currentQuestion: string) => {
             try {
-                const result = await getInterpretation(cards, spread, question, almanacInfo);
-                dispatch({ type: 'INTERPRETATION_SUCCESS', payload: { interpretation: result } });
+                const result = await getInterpretation(cards, currentSpread, currentQuestion, almanacInfo);
+                setInterpretationSuccess({ interpretation: result });
             } catch (err) {
                 const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-                dispatch({ type: 'INTERPRETATION_FAILURE', payload: { error: message } });
+                setInterpretationFailure({ error: message });
             }
         };
 
-        if (state.phase === 'generatingImages') {
-            processImageGeneration(state.drawnCards);
-        } else if (state.phase === 'loading' && state.spread) {
-            processInterpretation(state.drawnCards, state.spread, state.question);
-        } else if (state.phase === 'interpretationError' && state.error) {
-            showToast(`Error: ${state.error}`);
-            dispatch({ type: 'RESET' });
+        if (phase === 'generatingImages') {
+            processImageGeneration(drawnCards);
+        } else if (phase === 'loading' && spread) {
+            processInterpretation(drawnCards, spread, question);
         }
-    }, [state.phase, state.drawnCards, state.spread, state.question, state.error, imageCache, addImageToCache, almanacInfo, showToast]);
+    }, [phase, drawnCards, spread, question, imageCache, addImageToCache, almanacInfo, setImageGenerationSuccess, setImageGenerationFailure, setInterpretationSuccess, setInterpretationFailure]);
 
 
-    const startReading = (cards: DrawnCard[], spread: Spread, question: string) => {
+    const startReading = (cards: DrawnCard[], readingSpread: Spread, readingQuestion: string) => {
         if (cards.length === 0 || cards.some(c => !c.card)) {
             showToast("Not all cards were selected for the reading.");
             return;
         }
-        dispatch({ type: 'START_READING', payload: { cards, spread, question } });
+        storeStartReading({ cards, spread: readingSpread, question: readingQuestion });
     };
     
     const handleStartDailyDraw = async () => {
         setIsDailyDrawLoading(true);
         try {
-            await useDeckStore.getState().loadDeck();
-            const currentDeck = useDeckStore.getState().deck;
-
-            if (!currentDeck || currentDeck.length === 0) {
-                showToast("Card deck could not be loaded. Please try again.");
+            if (!deck || deck.length === 0) {
+                showToast("Card deck is not available. Please check your connection or try again later.");
                 return;
             }
 
             const dailySpread = SPREADS.find(s => s.id === 'single-card')!;
-            const shuffled = shuffleArray<TarotCard>(currentDeck);
+            const shuffled = shuffleArray<TarotCard>(deck);
             const drawnCard = shuffled[0];
 
             if (!drawnCard) {
@@ -159,30 +126,36 @@ const HomeView: React.FC = () => {
     };
 
     const handleSaveToJournal = useCallback((impression: string, tags: string[]) => {
-        if (!state.interpretation || !state.spread) return;
+        if (!interpretation || !spread) return;
+        
+        const todayISO = getLocalISO_Date(); // Get current date at time of save
 
         const newEntry: JournalEntry = {
             id: `entry-${crypto.randomUUID()}`,
             createdAt: new Date().toISOString(),
             dateISO: todayISO,
-            spread: state.spread,
-            drawnCards: state.drawnCards,
-            interpretation: state.interpretation,
-            question: state.question.trim() || undefined,
+            spread: spread,
+            drawnCards: drawnCards,
+            interpretation: interpretation,
+            question: question.trim() || undefined,
             impression,
             tags: tags.length > 0 ? tags : undefined,
         };
         addEntry(newEntry);
         showToast('Reading saved to journal!');
-        dispatch({ type: 'RESET' });
-    }, [addEntry, showToast, state.drawnCards, state.interpretation, state.question, state.spread, todayISO]);
+        resetReading();
+    }, [addEntry, showToast, drawnCards, interpretation, question, spread, resetReading]);
 
     const handleReset = useCallback(() => {
-        dispatch({ type: 'RESET' });
-    }, []);
+        resetReading();
+    }, [resetReading]);
+
+    const handleViewJournalEntry = (entryId: string) => {
+        setJournalFilter({ type: 'id', value: entryId });
+    };
 
     const getLoadingMessage = () => {
-        if (state.phase === 'generatingImages') {
+        if (phase === 'generatingImages') {
             return [ "Sketching the unseen...", "Weaving threads of light...", "Giving form to whispers..." ];
         }
         return [ "Gathering cosmic echoes...", "Listening to the cards' story...", "Interpreting the symbols..." ];
@@ -196,19 +169,24 @@ const HomeView: React.FC = () => {
             </div>
             
             <div className="bg-surface/70 rounded-card p-6 card-border shadow-main min-h-[230px] flex flex-col justify-center">
-                {entryForToday ? (
+                {dailyDrawForToday ? (
                     <div className="animate-fade-in">
                         <h3 className="text-xl font-bold text-text mb-4">Your Card of the Day</h3>
                         <div className="flex flex-col md:flex-row items-center gap-6 text-left">
                             <img 
-                                src={entryForToday.drawnCards[0].imageUrl || entryForToday.drawnCards[0].card.imageUrl} 
-                                alt={entryForToday.drawnCards[0].card.name} 
-                                className={`w-32 h-auto rounded-lg shadow-lg flex-shrink-0 ${entryForToday.drawnCards[0].isReversed ? 'transform rotate-180' : ''}`} 
+                                src={dailyDrawForToday.drawnCards[0].imageUrl || dailyDrawForToday.drawnCards[0].card.imageUrl} 
+                                alt={dailyDrawForToday.drawnCards[0].card.name} 
+                                className={`w-32 h-auto rounded-lg shadow-lg flex-shrink-0 ${dailyDrawForToday.drawnCards[0].isReversed ? 'transform rotate-180' : ''}`} 
                             />
                             <div>
-                                <p className="text-lg font-bold text-accent">{entryForToday.drawnCards[0].card.name}</p>
-                                <p className="text-sub italic text-sm mb-2">{entryForToday.interpretation.cards[0].meaning}</p>
-                                <a href="#journal" className="font-sans text-accent underline text-sm hover:text-accent/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">View full reading in Journal</a>
+                                <p className="text-lg font-bold text-accent">{dailyDrawForToday.drawnCards[0].card.name}</p>
+                                <p className="text-sub italic text-sm mb-2">{dailyDrawForToday.interpretation.cards[0].meaning}</p>
+                                <a 
+                                    href="#journal" 
+                                    onClick={() => handleViewJournalEntry(dailyDrawForToday.id)}
+                                    className="font-sans text-accent underline text-sm hover:text-accent/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">
+                                    View full reading in Journal
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -240,7 +218,7 @@ const HomeView: React.FC = () => {
     );
 
     const renderContent = () => {
-        switch (state.phase) {
+        switch (phase) {
             case 'loading':
             case 'generatingImages':
                 return (
@@ -252,21 +230,32 @@ const HomeView: React.FC = () => {
                  return (
                     <div className="bg-surface rounded-card shadow-main p-6 card-border animate-fade-in text-center font-serif">
                         <h3 className="text-2xl font-bold text-red-400 mb-4">Art Generation Failed</h3>
-                        <p className="text-sub mb-2 max-w-md mx-auto">{state.error || "An unexpected error occurred."}</p>
+                        <p className="text-sub mb-2 max-w-md mx-auto">{error || "An unexpected error occurred."}</p>
                         <p className="text-sub mb-6">You can try again, or continue with the default card art.</p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center font-sans">
-                            <button onClick={() => dispatch({ type: 'RETRY_IMAGE_GENERATION' })} className="flex-1 bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui">Retry Generation</button>
-                            <button onClick={() => dispatch({ type: 'CONTINUE_WITHOUT_ART'})} className="flex-1 bg-border text-text font-bold py-3 px-4 rounded-ui">Continue with Default Art</button>
+                            <button onClick={retryImageGeneration} className="flex-1 bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui">Retry Generation</button>
+                            <button onClick={continueWithoutArt} className="flex-1 bg-border text-text font-bold py-3 px-4 rounded-ui">Continue with Default Art</button>
                         </div>
                     </div>
                 );
+            case 'interpretationError':
+                return (
+                   <div className="bg-surface rounded-card shadow-main p-6 card-border animate-fade-in text-center font-serif">
+                       <h3 className="text-2xl font-bold text-red-400 mb-4">Interpretation Failed</h3>
+                       <p className="text-sub mb-6 max-w-md mx-auto">{error || "An unexpected error occurred while interpreting the cards."}</p>
+                       <div className="flex flex-col sm:flex-row gap-4 justify-center font-sans">
+                           <button onClick={retryInterpretation} className="flex-1 bg-accent text-accent-dark font-bold py-3 px-4 rounded-ui">Retry Interpretation</button>
+                           <button onClick={resetReading} className="flex-1 bg-border text-text font-bold py-3 px-4 rounded-ui">Start Over</button>
+                       </div>
+                   </div>
+               );
             case 'result':
-                return state.interpretation && state.drawnCards.length > 0 && state.spread && (
+                return interpretation && drawnCards.length > 0 && spread && (
                     <ReadingResult
-                        drawnCards={state.drawnCards}
-                        interpretation={state.interpretation}
-                        spread={state.spread}
-                        question={state.question}
+                        drawnCards={drawnCards}
+                        interpretation={interpretation}
+                        spread={spread}
+                        question={question}
                         onSave={handleSaveToJournal}
                         onReset={handleReset}
                     />
@@ -291,9 +280,9 @@ const HomeView: React.FC = () => {
             <CustomReadingFlow
                 isOpen={isCustomReadingModalOpen}
                 onClose={() => setIsCustomReadingModalOpen(false)}
-                onStartReading={(cards, spread, question) => {
+                onStartReading={(cards, readingSpread, readingQuestion) => {
                     setIsCustomReadingModalOpen(false);
-                    startReading(cards, spread, question);
+                    startReading(cards, readingSpread, readingQuestion);
                 }}
             />
         </div>

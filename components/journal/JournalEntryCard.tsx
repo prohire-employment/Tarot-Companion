@@ -5,9 +5,10 @@ interface JournalEntryCardProps {
     entry: JournalEntry;
     onEdit: (entry: JournalEntry) => void;
     onDelete: (id: string) => void;
+    onTagClick: (tag: string) => void;
 }
 
-const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, onEdit, onDelete }) => {
+const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, onEdit, onDelete, onTagClick }) => {
     
     const handleEditClick = useCallback(() => {
         onEdit(entry);
@@ -38,7 +39,7 @@ const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, onEdit, onDe
                     <details className="group">
                         <summary className="cursor-pointer text-text font-bold hover:text-accent transition-colors list-none flex justify-between items-center">
                             <span>AI Interpretation</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-sub transition-transform duration-200 group-open:rotate-180">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-sub transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                             </svg>
                         </summary>
@@ -69,7 +70,16 @@ const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, onEdit, onDe
                 <div>
                     <h4 className="font-bold text-text">Tags</h4>
                     <div className="flex flex-wrap gap-2 mt-1 font-sans">
-                    {entry.tags.map(tag => <span key={tag} className="text-xs bg-accent/20 text-accent px-2 py-1 rounded-full">{tag}</span>)}
+                    {entry.tags.map(tag => (
+                        <button 
+                            key={tag} 
+                            onClick={() => onTagClick(tag)}
+                            className="text-xs bg-accent/20 text-accent px-2 py-1 rounded-full hover:bg-accent/40 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            aria-label={`Filter by tag: ${tag}`}
+                        >
+                            {tag}
+                        </button>
+                    ))}
                     </div>
                 </div>
                 )}

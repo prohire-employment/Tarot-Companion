@@ -1,6 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useModalFocus } from '../../hooks/useModalFocus';
-import { useSound } from '../../hooks/useSound';
 import CardBack from '../CardBack';
 
 interface DailyDrawModalProps {
@@ -13,23 +12,14 @@ interface DailyDrawModalProps {
 const DailyDrawModal: React.FC<DailyDrawModalProps> = ({ isOpen, onClose, onDraw, isLoading = false }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   useModalFocus({ isOpen, onClose, modalRef });
-  const { playSound } = useSound();
-
-  useEffect(() => {
-    if (isOpen) {
-      playSound('open');
-    }
-  }, [isOpen, playSound]);
 
   const handleClose = () => {
     if (isLoading) return;
-    playSound('close');
     onClose();
   };
 
   const handleDraw = () => {
     if (isLoading) return;
-    playSound('draw');
     onDraw();
   };
 

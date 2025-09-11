@@ -1,6 +1,4 @@
 import React, { useEffect } from 'react';
-import { useJournalStore } from './store/journalStore';
-import { useSettingsStore } from './store/settingsStore';
 import { useUiStore } from './store/uiStore';
 import type { View } from './types';
 import HomeView from './components/views/HomeView';
@@ -8,65 +6,33 @@ import JournalView from './components/views/JournalView';
 import CalendarView from './components/views/CalendarView';
 import SettingsView from './components/views/SettingsView';
 import LibraryView from './components/views/LibraryView';
-import Toast from './components/Toast';
+import AboutView from './components/views/AboutView';
+import { Toast } from './components/Toast';
 import { HomeIcon, JournalIcon, CalendarIcon, SettingsIcon, LibraryIcon } from './components/icons/NavIcons';
-import ScrollToTopButton from './components/ScrollToTopButton';
-import { getLocalISO_Date } from './lib/utils';
+import { ScrollToTopButton } from './components/ScrollToTopButton';
 import { useHashRouter } from './hooks/useHashRouter';
 import ErrorBoundary from './components/ErrorBoundary';
+import { useDeckStore } from './store/deckStore';
+import { useAlmanac } from './hooks/useAlmanac';
+import { LunarPhaseIcon } from './components/icons/AlmanacIcons';
+import { useNotificationScheduler } from './hooks/useNotificationScheduler';
+import OnboardingTutorial from './components/onboarding/OnboardingTutorial';
 
 const App: React.FC = () => {
-  const { entries } = useJournalStore();
-  const { settings } = useSettingsStore();
-  const { activeView, toastMessage, showToast, hideToast } = useUiStore();
+  const { activeView, hideToast, toastMessage } = useUiStore();
+  const loadDeck = useDeckStore(state => state.loadDeck);
+  const almanac = useAlmanac();
 
   // Initialize and manage routing
   useHashRouter();
 
+  // Initialize notification scheduling
+  useNotificationScheduler();
+
+  // Centralized data loading on app start
   useEffect(() => {
-    if (!settings.notificationsEnabled || !('Notification' in window)) {
-      return;
-    }
-
-    let timeoutId: number;
-
-    const scheduleNextReminder = () => {
-      const [hh, mm] = settings.reminderTime.split(':').map(Number);
-      const now = new Date();
-      
-      let reminderDate = new Date();
-      reminderDate.setHours(hh, mm, 0, 0);
-
-      if (reminderDate <= now) {
-        // If time has already passed for today, schedule for tomorrow
-        reminderDate.setDate(reminderDate.getDate() + 1);
-      }
-      
-      const msToReminder = reminderDate.getTime() - now.getTime();
-      
-      timeoutId = window.setTimeout(() => {
-        const todayISO = getLocalISO_Date();
-        const hasDrawnToday = entries.some(e => e.dateISO === todayISO);
-
-        if (!hasDrawnToday) {
-            const msg = 'The cards await. Time for your daily Tarot Companion reading.';
-            if (Notification.permission === 'granted') {
-                new Notification('Tarot Companion', { body: msg, icon: '/public/favicon.svg' });
-            } else {
-                showToast(msg);
-            }
-        }
-        
-        // Schedule the next reminder
-        scheduleNextReminder();
-      }, msToReminder);
-    };
-
-    scheduleNextReminder();
-
-    return () => clearTimeout(timeoutId);
-  }, [settings.notificationsEnabled, settings.reminderTime, entries, showToast]);
-
+    loadDeck();
+  }, [loadDeck]);
 
   const renderView = () => {
     switch (activeView) {
@@ -80,6 +46,8 @@ const App: React.FC = () => {
         return <LibraryView />;
       case 'settings':
         return <SettingsView />;
+      case 'about':
+        return <AboutView />;
       default:
         return <HomeView />;
     }
@@ -100,6 +68,10 @@ const App: React.FC = () => {
       <header className="bg-surface/70 backdrop-blur-lg border-b border-border sticky top-0 z-10 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <h1 className="text-xl font-serif font-bold text-accent tracking-wider">Tarot Companion</h1>
+          <div className="flex items-center gap-2 text-sub text-sm font-sans" title={`Current lunar phase: ${almanac.lunarPhase}`}>
+            <LunarPhaseIcon phase={almanac.lunarPhase} className="w-5 h-5" />
+            <span className="hidden sm:inline">{almanac.lunarPhase}</span>
+          </div>
         </div>
       </header>
       
@@ -136,6 +108,8 @@ const App: React.FC = () => {
       {scrollableViews.includes(activeView) && <ScrollToTopButton />}
 
       <Toast message={toastMessage} onClose={hideToast} />
+      
+      <OnboardingTutorial />
     </div>
   );
 };

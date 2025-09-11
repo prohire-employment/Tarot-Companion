@@ -3,7 +3,6 @@ import React, { memo } from 'react';
 import type { Spread, DrawnCard, TarotCard } from '../../types';
 import { useSettingsStore } from '../../store/settingsStore';
 import { shuffleArray } from '../../lib/utils';
-import { useSound } from '../../hooks/useSound';
 
 interface DigitalDrawPanelProps {
   spread: Spread;
@@ -13,7 +12,6 @@ interface DigitalDrawPanelProps {
 
 const DigitalDrawPanel: React.FC<DigitalDrawPanelProps> = ({ spread, deck, onDraw }) => {
   const { settings } = useSettingsStore();
-  const { playSound } = useSound();
 
   const drawCards = (count: number): DrawnCard[] => {
     const shuffled = shuffleArray(deck);
@@ -25,7 +23,6 @@ const DigitalDrawPanel: React.FC<DigitalDrawPanelProps> = ({ spread, deck, onDra
   };
 
   const handleDigitalDraw = () => {
-    playSound('draw');
     const cards = drawCards(spread.cardCount);
     onDraw(cards);
   };

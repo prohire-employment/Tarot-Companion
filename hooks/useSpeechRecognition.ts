@@ -39,19 +39,23 @@ export const useSpeechRecognition = ({ onResult, onError }: UseSpeechRecognition
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      let errorMessage = `Speech recognition error: ${event.error}`;
+      let errorMessage = `An unexpected speech recognition error occurred: ${event.error}.`;
       switch (event.error) {
         case 'not-allowed':
-          errorMessage = "Microphone access denied. Please enable it in your browser settings.";
+        case 'service-not-allowed':
+          errorMessage = "Microphone access denied. Please enable microphone permissions for this site in your browser settings.";
           break;
         case 'no-speech':
-          errorMessage = "No speech was detected. Please try again.";
+          errorMessage = "No speech was detected. Please hold the button and speak clearly.";
           break;
         case 'network':
-          errorMessage = "A network error occurred. Please check your connection.";
+          errorMessage = "A network error occurred with the speech service. Please check your connection.";
+          break;
+        case 'audio-capture':
+          errorMessage = "Failed to capture audio. Please ensure your microphone is working correctly.";
           break;
         case 'aborted':
-           // Don't show an error for manual aborts
+           // Don't show an error for manual aborts. This happens when the user releases the button.
            return;
         default:
           break;

@@ -17,7 +17,7 @@ const CalendarDayModal: React.FC<CalendarDayModalProps> = ({ isOpen, onClose, en
 
   const handleViewInJournal = () => {
     if (entries.length > 0) {
-      setJournalFilter({ dateISO: entries[0].dateISO });
+      setJournalFilter({ type: 'date', value: entries[0].dateISO });
       window.location.hash = 'journal';
       onClose();
     }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLunarPhase, getSeason, getWheelHoliday } from '../lib/almanac';
+import { getLunarPhase, getSeason, getWheelHoliday, getUpcomingHolidays } from '../lib/almanac';
 import type { AlmanacInfo } from '../types';
 
 export const useAlmanac = (): AlmanacInfo => {
@@ -9,6 +9,7 @@ export const useAlmanac = (): AlmanacInfo => {
       lunarPhase: getLunarPhase(now),
       season: getSeason(now),
       holiday: getWheelHoliday(now),
+      upcomingHolidays: getUpcomingHolidays(4),
     };
   });
 
@@ -27,6 +28,7 @@ export const useAlmanac = (): AlmanacInfo => {
           lunarPhase: getLunarPhase(today),
           season: getSeason(today),
           holiday: getWheelHoliday(today),
+          upcomingHolidays: getUpcomingHolidays(4),
         });
         // Schedule the next update recursively
         scheduleNextUpdate();

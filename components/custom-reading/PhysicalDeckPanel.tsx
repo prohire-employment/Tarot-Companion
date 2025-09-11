@@ -1,4 +1,4 @@
-import React, { useState, useRef, memo } from 'react';
+import React, { useState, useRef, memo, useCallback } from 'react';
 import type { DrawnCard, TarotCard } from '../../types';
 import { useUiStore } from '../../store/uiStore';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
@@ -23,7 +23,8 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
     const [isProcessing, setIsProcessing] = useState(false);
     const [processingMessage, setProcessingMessage] = useState("Reading the card's energy...");
     const [recognizedCard, setRecognizedCard] = useState<TarotCard | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [isKeyDown, setIsKeyDown] = useState(false);
+
 
     // Camera State
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -53,7 +54,6 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
     const processImage = async (base64Image: string) => {
         setProcessingMessage("Reading the card's energy...");
         setIsProcessing(true);
-        setImagePreview(null); // Clear preview once processing starts
         setRecognizedCard(null);
         try {
             const cardName = await identifyCardFromImage(base64Image);
@@ -73,19 +73,17 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
     const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            setProcessingMessage("Preparing image...");
-            setIsProcessing(true);
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (typeof e.target?.result === 'string') {
-                    setImagePreview(e.target.result);
+                    processImage(e.target.result);
+                } else {
+                    showToast("Could not read the selected image file.");
                 }
-                setIsProcessing(false);
             };
             reader.onerror = () => {
                 showToast("Failed to read the selected file.");
-                setIsProcessing(false);
-            }
+            };
             reader.readAsDataURL(file);
         }
     };
@@ -114,7 +112,6 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
 
     const handleRetry = () => {
         setRecognizedCard(null);
-        setImagePreview(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -128,10 +125,14 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
         if (videoRef.current) videoRef.current.srcObject = stream;
         setIsCameraOpen(true);
       } catch (err) {
-        let message = "Could not access camera.";
+        let message = "Could not access the camera. Please ensure it is not in use by another application.";
         if (err instanceof Error) {
-            if (err.name === 'NotAllowedError') message = "Camera access was denied. Please enable it in your browser settings.";
-            else if (err.name === 'NotFoundError') message = "No camera found on this device.";
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                 message = "Camera access was denied. Please enable camera permissions for this site in your browser settings to use this feature.";
+            }
+            else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                message = "No camera was found on your device.";
+            }
         }
         showToast(message);
       }
@@ -144,6 +145,29 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
       }
       setIsCameraOpen(false);
     };
+    
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if ((e.key === ' ' || e.key === 'Enter') && !isListening && !isKeyDown) {
+          e.preventDefault();
+          setIsKeyDown(true);
+          startListening();
+      }
+    }, [isListening, isKeyDown, startListening]);
+
+    const handleKeyUp = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+        if ((e.key === ' ' || e.key === 'Enter') && isListening) {
+            e.preventDefault();
+            setIsKeyDown(false);
+            stopListening();
+        }
+    }, [isListening, stopListening]);
+
+    const handleBlur = useCallback(() => {
+        if (isListening) {
+            setIsKeyDown(false);
+            stopListening();
+        }
+    }, [isListening, stopListening]);
 
     const renderConfirmation = () => (
          <div className="text-center space-y-4 p-4 bg-bg/30 rounded-lg animate-fade-in">
@@ -157,16 +181,6 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
         </div>
     );
     
-    const renderImagePreview = () => (
-        <div className="text-center space-y-4 p-4 bg-bg/30 rounded-lg animate-fade-in">
-            <p className="text-sub">Confirm your selection:</p>
-            <img src={imagePreview!} alt="Card preview" className="w-48 mx-auto rounded-lg shadow-lg" />
-            <div className="flex gap-4 justify-center">
-                <button onClick={() => processImage(imagePreview!)} className="flex-1 bg-accent text-accent-dark font-bold py-2 px-4 rounded-ui">Process Image</button>
-                <button onClick={handleRetry} className="flex-1 bg-border text-text font-bold py-2 px-4 rounded-ui">Choose Different</button>
-            </div>
-        </div>
-    );
 
     if (isProcessing) {
         return (
@@ -177,7 +191,6 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
     }
     
     if (recognizedCard) return renderConfirmation();
-    if (imagePreview) return renderImagePreview();
 
     if (method === 'photo') {
         return (
@@ -207,6 +220,9 @@ const PhysicalDeckPanel: React.FC<PhysicalDeckPanelProps> = ({ method, deck, onG
                     onMouseLeave={stopListening}
                     onTouchStart={(e) => { e.preventDefault(); startListening(); }}
                     onTouchEnd={stopListening}
+                    onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
+                    onBlur={handleBlur}
                     className={`mx-auto px-6 py-3 w-full max-w-xs rounded-ui transition-all duration-200 font-bold flex items-center justify-center gap-2 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                         isListening
                         ? 'bg-red-600 text-white scale-105 shadow-lg'
