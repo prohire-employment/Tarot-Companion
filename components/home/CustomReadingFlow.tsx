@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useSpreadStore } from '../../store/spreadStore';
@@ -170,7 +171,10 @@ const CustomReadingFlow: React.FC<CustomReadingFlowProps> = ({ isOpen, onClose, 
     const [isSpreadDetailModalOpen, setIsSpreadDetailModalOpen] = useState(false);
     const [isSpreadInfoModalOpen, setIsSpreadInfoModalOpen] = useState(false);
     
-    const availableSpreads = useMemo(() => [...SPREADS, ...customSpreads], [customSpreads]);
+    const availableSpreads = useMemo(() => 
+        [...SPREADS, ...customSpreads].filter(s => s.id !== 'single-card'), 
+        [customSpreads]
+    );
     const selectedSpread = useMemo(() => availableSpreads.find(s => s.id === selectedSpreadId)!, [availableSpreads, selectedSpreadId]);
 
     const availableDeck = useMemo(() => {
@@ -190,13 +194,14 @@ const CustomReadingFlow: React.FC<CustomReadingFlowProps> = ({ isOpen, onClose, 
     
     useEffect(() => {
         const isSelectedSpreadAvailable = availableSpreads.some(s => s.id === selectedSpreadId);
-        if (!isSelectedSpreadAvailable) {
-            setSelectedSpreadId(SPREADS[0].id);
+        // If the selected spread is not in the (filtered) list (e.g., it was 'single-card'), default to the first available one.
+        if (!isSelectedSpreadAvailable && availableSpreads.length > 0) {
+            setSelectedSpreadId(availableSpreads[0].id);
         }
     }, [availableSpreads, selectedSpreadId, setSelectedSpreadId]);
 
     useEffect(() => {
-        if (selectedSpread.cardCount > 1 && (inputMethod === 'photo' || inputMethod === 'voice')) {
+        if (selectedSpread && selectedSpread.cardCount > 1 && (inputMethod === 'photo' || inputMethod === 'voice')) {
             setInputMethod('digital');
             showToast("Photo/Voice input is for single-card spreads only. Switched to Digital Draw.");
         }

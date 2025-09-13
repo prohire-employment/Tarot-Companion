@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useJournalStore } from '../../store/journalStore';
@@ -176,7 +177,7 @@ const SettingsView: React.FC = () => {
     <div className="space-y-8 font-serif">
       <h2 className="text-3xl font-bold text-accent text-center">Settings</h2>
 
-      <section className="bg-surface rounded-card shadow-main p-6 card-border">
+      <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border">
         <h3 className="text-xl font-bold text-accent mb-4">Reading Preferences</h3>
         <div className="space-y-6 font-sans">
           <div className="flex items-center justify-between">
@@ -202,7 +203,7 @@ const SettingsView: React.FC = () => {
         </div>
       </section>
 
-      <section className="bg-surface rounded-card shadow-main p-6 card-border">
+      <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border">
         <h3 className="text-xl font-bold text-accent mb-4">Reminders</h3>
         <div className="space-y-4 font-sans">
           <div className="flex items-center justify-between">
@@ -238,7 +239,7 @@ const SettingsView: React.FC = () => {
         </div>
       </section>
 
-      <section className="bg-surface rounded-card shadow-main p-6 card-border">
+      <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border">
           <h3 className="text-xl font-bold text-accent mb-4">Custom Spreads</h3>
           <div className="space-y-4 font-sans">
             {customSpreads.length > 0 ? (
@@ -283,7 +284,7 @@ const SettingsView: React.FC = () => {
           </div>
         </section>
 
-      <section className="bg-surface rounded-card shadow-main p-6 card-border">
+      <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border">
         <h3 className="text-xl font-bold text-accent mb-4">Data Management</h3>
         <div className="space-y-4 font-sans">
           <p className="text-sub text-sm">All your data is stored securely in your browser. You can back it up to a file or import a previous backup.</p>
@@ -317,7 +318,7 @@ const SettingsView: React.FC = () => {
         </div>
       </section>
 
-      <section className="bg-surface rounded-card shadow-main p-6 card-border">
+      <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border">
           <h3 className="text-xl font-bold text-accent mb-4">About</h3>
           <div className="font-sans">
               <a 

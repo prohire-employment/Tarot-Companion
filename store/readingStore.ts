@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SPREADS } from '../data/spreads';
-import type { Spread, DrawnCard, ReadingPhase, ReadingState as OldReadingState } from '../types';
+import type { Spread, DrawnCard, ReadingPhase, InterpretationLayer, InterpretedCard } from '../types';
 
 type InputMethod = 'digital' | 'manual' | 'photo' | 'voice';
 
@@ -9,7 +9,10 @@ interface ReadingStoreState {
     // --- Active Reading State (from the old reducer) ---
     phase: ReadingPhase;
     drawnCards: DrawnCard[];
-    interpretation: OldReadingState['interpretation'] | null;
+    interpretation: {
+        overall: InterpretationLayer;
+        cards: InterpretedCard[];
+    } | null;
     spread: Spread | null; // The spread used for the active reading
     question: string; // The question for the active reading
     error: string | null;
@@ -28,7 +31,7 @@ interface ReadingStoreState {
     startReading: (payload: { cards: DrawnCard[], spread: Spread, question: string }) => void;
     setImageGenerationSuccess: (payload: { cardsWithImages: DrawnCard[] }) => void;
     setImageGenerationFailure: (payload: { error: string }) => void;
-    setInterpretationSuccess: (payload: { interpretation: OldReadingState['interpretation'] }) => void;
+    setInterpretationSuccess: (payload: { interpretation: ReadingStoreState['interpretation'] }) => void;
     setInterpretationFailure: (payload: { error: string }) => void;
     retryImageGeneration: () => void;
     retryInterpretation: () => void;
@@ -38,7 +41,7 @@ interface ReadingStoreState {
 
 const initialConfigState = {
   configQuestion: '',
-  selectedSpreadId: SPREADS[0].id,
+  selectedSpreadId: SPREADS[1].id, // Default to Past, Present, Future
   inputMethod: 'digital' as const,
 };
 

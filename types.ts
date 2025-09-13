@@ -5,6 +5,19 @@ export type View = 'home' | 'journal' | 'calendar' | 'settings' | 'library' | 'a
 export type DeckType = 'full' | 'major' | 'minor';
 
 // Data Structures
+
+// New: Defines the three layers of meaning for an interpretation
+export interface InterpretationLayer {
+  outer: string; // The practical, external meaning
+  inner: string; // The psychological, internal meaning
+  whispers: string; // The spiritual, intuitive meaning
+}
+
+// New: Defines the layered interpretation for a single card
+export interface InterpretedCard extends InterpretationLayer {
+  cardName: string;
+}
+
 export interface TarotCard {
   id: string;
   name: string;
@@ -41,11 +54,8 @@ export interface JournalEntry {
   spread: Spread;
   drawnCards: DrawnCard[];
   interpretation: {
-    overall: string;
-    cards: {
-      cardName: string;
-      meaning: string;
-    }[];
+    overall: InterpretationLayer;
+    cards: InterpretedCard[];
   };
   question?: string;
   impression: string;
@@ -82,8 +92,8 @@ export interface ReadingState {
     phase: ReadingPhase;
     drawnCards: DrawnCard[];
     interpretation: {
-        overall: string;
-        cards: { cardName: string; meaning: string }[];
+        overall: InterpretationLayer;
+        cards: InterpretedCard[];
     } | null;
     spread: Spread | null;
     question: string;

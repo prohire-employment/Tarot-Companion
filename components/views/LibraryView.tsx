@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { useDeckStore } from '../../store/deckStore';
 import CardDetailModal from '../library/CardDetailModal';
@@ -41,7 +42,7 @@ const LibraryView: React.FC = () => {
         
         if (error) {
             return (
-                 <div className="text-center py-16 bg-surface rounded-card shadow-main card-border">
+                 <div className="text-center py-16 bg-surface/70 backdrop-blur-lg rounded-card shadow-main card-border">
                     <p className="text-red-400 font-bold">Failed to Load Library</p>
                     <p className="text-sub/80 mt-2">{error}</p>
                 </div>
@@ -63,7 +64,7 @@ const LibraryView: React.FC = () => {
         }
         
         return (
-            <div className="text-center py-16 bg-surface rounded-card shadow-main card-border">
+            <div className="text-center py-16 bg-surface/70 backdrop-blur-lg rounded-card shadow-main card-border">
                 <p className="text-sub">No cards found for "{searchTerm}".</p>
             </div>
         );

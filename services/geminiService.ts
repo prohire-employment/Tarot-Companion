@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Content, Part } from "@google/genai";
-import type { DrawnCard, Spread, TarotCard, AlmanacInfo } from '../types';
+import type { DrawnCard, Spread, TarotCard, AlmanacInfo, InterpretationLayer, InterpretedCard } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -146,42 +146,64 @@ export const getInterpretation = async (
   spread: Spread,
   question: string,
   almanacInfo: AlmanacInfo
-): Promise<{ overall: string; cards: { cardName: string; meaning: string }[] }> => {
+): Promise<{ overall: InterpretationLayer; cards: InterpretedCard[] }> => {
   const aiInstance = ensureAi();
   const cardDetails = formatCardsForPrompt(drawnCards);
   const positionDetails = spread.positions.map((p, i) => `Position ${i+1} (${p.title}): ${p.description}`).join('\n');
-  const userQuestion = question ? `The user's question is: "${question}"` : "The user has not provided a specific question; this is a general reading.";
+  const userQuestion = question ? `The user's specific question is paramount: "${question}"` : "This is a general reading for overall guidance.";
 
   const almanacContext = `
-**Contextual Information:**
+**Contextual Information (subtly weave these in):**
 - **Lunar Phase:** ${almanacInfo.lunarPhase}
 - **Season:** ${almanacInfo.season}
 - **Holiday/Sabbat:** ${almanacInfo.holiday || 'None'}
-
-Please subtly weave these contextual elements into the interpretation where they feel relevant to add depth and nuance.
 `;
 
   const contents = `
-You are a wise and compassionate Tarot guide. Your tone should be empowering, insightful, and slightly mystical, as if sharing sacred knowledge with a trusted friend. Avoid overly dramatic or fortune-teller language. Focus on providing gentle guidance, highlighting opportunities for growth, and framing challenges as lessons. The interpretation should feel personal, supportive, and deeply connected to the cards' symbolism.
+You are a wise, compassionate, and mystical Tarot guide. Your tone is empowering and insightful. Frame challenges as lessons. The user's question is the most important part of the context.
 
 **Reading Details:**
 - **Spread:** ${spread.name}
-- **Question/Focus:** ${userQuestion}
+- **Focus:** ${userQuestion}
 ${almanacContext}
 **Cards Drawn:**
 ${cardDetails}
-
 **Spread Positions:**
 ${positionDetails}
 
-Please provide an interpretation in JSON format. The JSON object should have two keys:
-1.  "overall": A summary of the reading's main message (2-3 sentences).
-2.  "cards": An array of objects, one for each card drawn. Each object should have:
-    - "cardName": The name of the card (e.g., "The Fool").
-    - "meaning": An interpretation of that card in its specific position within the spread, considering the user's question, the other cards, and the contextual information provided. Keep this to 2-4 sentences.
+Provide an interpretation in JSON. It must have two keys: "overall" and "cards".
 
-Do not include any introductory or concluding text outside of the JSON structure.
+1.  "overall": An object with three distinct layers of meaning for the entire reading:
+    - "outer": The practical, real-world advice and likely outcomes (2 sentences).
+    - "inner": The psychological, emotional, or internal landscape this reading reflects (2 sentences).
+    - "whispers": The spiritual lesson or intuitive, higher-perspective guidance (1-2 sentences).
+
+2.  "cards": An array of objects, one for each card. Each object must have:
+    - "cardName": The name of the card.
+    - "outer": The card's practical meaning in its specific position, answering the user's question.
+    - "inner": The card's psychological or emotional message in this position.
+    - "whispers": The card's spiritual or intuitive guidance in this position.
+
+Keep each card layer interpretation concise (1-2 sentences).
 `;
+    const layerSchema = {
+        type: Type.OBJECT,
+        properties: {
+            outer: {
+                type: Type.STRING,
+                description: "The practical, real-world advice and likely outcomes."
+            },
+            inner: {
+                type: Type.STRING,
+                description: "The psychological, emotional, or internal landscape this reading reflects."
+            },
+            whispers: {
+                type: Type.STRING,
+                description: "The spiritual lesson or intuitive, higher-perspective guidance."
+            }
+        },
+        required: ["outer", "inner", "whispers"]
+    };
 
   try {
     const response = await aiInstance.models.generateContent({
@@ -192,13 +214,10 @@ Do not include any introductory or concluding text outside of the JSON structure
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            overall: {
-              type: Type.STRING,
-              description: "A summary of the reading's main message."
-            },
+            overall: layerSchema,
             cards: {
               type: Type.ARRAY,
-              description: "An array of interpretations for each card drawn.",
+              description: "An array of layered interpretations for each card drawn.",
               items: {
                 type: Type.OBJECT,
                 properties: {
@@ -206,12 +225,20 @@ Do not include any introductory or concluding text outside of the JSON structure
                     type: Type.STRING,
                     description: "The name of the card."
                   },
-                  meaning: {
+                  outer: {
                     type: Type.STRING,
-                    description: "The interpretation of the card in its position."
+                    description: "The card's practical meaning in its specific position."
+                  },
+                  inner: {
+                    type: Type.STRING,
+                    description: "The card's psychological or emotional message in this position."
+                  },
+                  whispers: {
+                    type: Type.STRING,
+                    description: "The card's spiritual or intuitive guidance in this position."
                   }
                 },
-                required: ["cardName", "meaning"]
+                required: ["cardName", "outer", "inner", "whispers"]
               }
             }
           },

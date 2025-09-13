@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { APP_VERSION, REPO_URL } from '../../constants';
 
@@ -17,7 +18,7 @@ const AboutView: React.FC = () => {
         </a>
       </div>
 
-      <section className="bg-surface rounded-card shadow-main p-6 card-border space-y-6">
+      <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border space-y-6">
         <div>
           <h3 className="text-xl font-bold text-accent mb-2">The App</h3>
           <p className="text-sub font-sans leading-relaxed">

@@ -37,19 +37,19 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (activeView) {
       case 'home':
-        return <HomeView />;
+        return <ErrorBoundary><HomeView /></ErrorBoundary>;
       case 'journal':
-        return <JournalView />;
+        return <ErrorBoundary><JournalView /></ErrorBoundary>;
       case 'calendar':
-        return <CalendarView />;
+        return <ErrorBoundary><CalendarView /></ErrorBoundary>;
       case 'library':
-        return <LibraryView />;
+        return <ErrorBoundary><LibraryView /></ErrorBoundary>;
       case 'settings':
-        return <SettingsView />;
+        return <ErrorBoundary><SettingsView /></ErrorBoundary>;
       case 'about':
-        return <AboutView />;
+        return <ErrorBoundary><AboutView /></ErrorBoundary>;
       default:
-        return <HomeView />;
+        return <ErrorBoundary><HomeView /></ErrorBoundary>;
     }
   };
 
@@ -65,6 +65,12 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen relative">
+      <video autoPlay muted loop playsInline className="fixed top-1/2 left-1/2 min-w-full min-h-full w-auto h-auto -translate-x-1/2 -translate-y-1/2 object-cover -z-20">
+        <source src="https://video-previews.elements.envatousercontent.com/files/9163180d-24f4-480c-a3f4-9987b6a5b656/video_preview_h264.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+      <div className="fixed inset-0 bg-bg/75 -z-10"></div>
+    
       <header className="bg-surface/70 backdrop-blur-lg border-b border-border sticky top-0 z-10 p-4">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <h1 className="text-xl font-serif font-bold text-accent tracking-wider">Tarot Companion</h1>
@@ -76,11 +82,9 @@ const App: React.FC = () => {
       </header>
       
       <main className="flex-grow p-4 md:p-6 max-w-4xl mx-auto w-full">
-        <ErrorBoundary>
-          <div key={activeView} className="animate-fade-in">
-            {renderView()}
-          </div>
-        </ErrorBoundary>
+        <div key={activeView} className="animate-fade-in">
+          {renderView()}
+        </div>
       </main>
 
       <nav className="bg-surface/70 backdrop-blur-lg border-t border-border sticky bottom-0 z-10 p-2">

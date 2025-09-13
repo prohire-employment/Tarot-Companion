@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { useJournalStore } from '../../store/journalStore';
 import { useUiStore } from '../../store/uiStore';
@@ -86,7 +87,7 @@ const JournalView: React.FC = () => {
   const renderContent = () => {
     if (entries.length === 0) {
       return (
-        <div className="text-center py-16 bg-surface rounded-card shadow-main card-border">
+        <div className="text-center py-16 bg-surface/70 backdrop-blur-lg rounded-card shadow-main card-border">
           <h3 className="text-xl font-bold text-text">Your Journal is Empty</h3>
           <p className="text-sub mt-2">Perform a reading on the Home screen to begin your collection.</p>
         </div>
@@ -95,7 +96,7 @@ const JournalView: React.FC = () => {
     
     if (filteredEntries.length === 0) {
       return (
-         <div className="text-center py-16 bg-surface rounded-card shadow-main card-border">
+         <div className="text-center py-16 bg-surface/70 backdrop-blur-lg rounded-card shadow-main card-border">
           <h3 className="text-xl font-bold text-text">No Entries Found</h3>
           <p className="text-sub mt-2">No entries match your current filter.</p>
         </div>
@@ -125,7 +126,7 @@ const JournalView: React.FC = () => {
         <h2 className="text-3xl font-bold text-accent text-center">Journal</h2>
 
         {showFilterBar && (
-          <div className="bg-surface rounded-card shadow-main p-4 card-border flex flex-col sm:flex-row justify-between items-center gap-4 animate-fade-in">
+          <div className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-4 card-border flex flex-col sm:flex-row justify-between items-center gap-4 animate-fade-in">
             <p className="text-sub text-sm text-center sm:text-left">
               {getFilterDescription()}
             </p>

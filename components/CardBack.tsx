@@ -55,7 +55,7 @@ const CardBack: React.FC<CardBackProps> = ({ className, isShimmering = false }) 
       </svg>
       {isShimmering && (
          <div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-shimmer-fast"
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/20 to-transparent animate-shimmer-fast"
           style={{ backgroundSize: '200% 100%' }}
         />
       )}

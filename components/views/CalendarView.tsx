@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { useAlmanac } from '../../hooks/useAlmanac';
 import { getWheelHoliday, getLunarPhase } from '../../lib/almanac';
@@ -106,7 +107,7 @@ const CalendarView: React.FC = () => {
       <div className="space-y-6 font-serif">
         <h2 className="text-3xl font-bold text-accent text-center">Calendar</h2>
         
-        <section className="bg-surface rounded-card shadow-main p-6 card-border">
+        <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border">
           <div className="flex items-center justify-between mb-4">
             <button onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label="Previous month">&lt;</button>
             <h3 className="text-xl font-bold text-text">
@@ -128,7 +129,7 @@ const CalendarView: React.FC = () => {
           </div>
         </section>
 
-        <section className="bg-surface rounded-card shadow-main p-6 text-center card-border">
+        <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 text-center card-border">
           <h3 className="text-xl font-bold text-accent mb-2">Today's Almanac</h3>
           <p className="text-lg text-sub">{new Date().toDateString()}</p>
           <div className="grid md:grid-cols-3 gap-4 mt-4">
@@ -147,7 +148,7 @@ const CalendarView: React.FC = () => {
           </div>
         </section>
 
-        <section className="bg-surface rounded-card shadow-main p-6 card-border">
+        <section className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border">
           <h3 className="text-xl font-bold text-accent mb-4 text-center">Upcoming Sabbats</h3>
           {almanac.upcomingHolidays.length > 0 ? (
             <ul className="space-y-3 font-sans">

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useJournalStore } from '../../store/journalStore';
 import { useUiStore } from '../../store/uiStore';
@@ -9,11 +10,13 @@ import Spinner from '../Spinner';
 import { useAlmanac } from '../../hooks/useAlmanac';
 import { useCardImageStore } from '../../store/cardImageStore';
 import CustomReadingFlow from '../home/CustomReadingFlow';
-import DailyDrawModal from '../home/DailyDrawModal';
 import { useDeckStore } from '../../store/deckStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { shuffleArray, getLocalISO_Date } from '../../lib/utils';
 import { useReadingStore } from '../../store/readingStore';
+import JourneyVisualizer from '../home/JourneyVisualizer';
+import InteractiveDailyCard from '../home/InteractiveDailyCard';
+import DeckCta from '../home/DeckCta';
 
 const HomeView: React.FC = () => {
     // Stores & Hooks
@@ -38,9 +41,9 @@ const HomeView: React.FC = () => {
     } = useReadingStore();
 
     // Local UI State
-    const [isDailyDrawModalOpen, setIsDailyDrawModalOpen] = useState(false);
     const [isCustomReadingModalOpen, setIsCustomReadingModalOpen] = useState(false);
     const [isDailyDrawLoading, setIsDailyDrawLoading] = useState(false);
+    const [isDailyCardFlipped, setIsDailyCardFlipped] = useState(false);
     
     // Memos
     const todayISOForDashboard = getLocalISO_Date();
@@ -87,19 +90,25 @@ const HomeView: React.FC = () => {
     }, [phase, drawnCards, spread, question, imageCache, addImageToCache, almanacInfo, setImageGenerationSuccess, setImageGenerationFailure, setInterpretationSuccess, setInterpretationFailure]);
 
 
-    const startReading = (cards: DrawnCard[], readingSpread: Spread, readingQuestion: string) => {
+    const startReading = useCallback((cards: DrawnCard[], readingSpread: Spread, readingQuestion: string) => {
         if (cards.length === 0 || cards.some(c => !c.card)) {
             showToast("Not all cards were selected for the reading.");
             return;
         }
         storeStartReading({ cards, spread: readingSpread, question: readingQuestion });
-    };
+    }, [showToast, storeStartReading]);
     
-    const handleStartDailyDraw = async () => {
+    const handleStartDailyDraw = useCallback(async () => {
         setIsDailyDrawLoading(true);
+        setIsDailyCardFlipped(true);
+
+        await new Promise(resolve => setTimeout(resolve, 400));
+
         try {
             if (!deck || deck.length === 0) {
-                showToast("Card deck is not available. Please check your connection or try again later.");
+                showToast("Card deck is not available. Please try again later.");
+                setIsDailyDrawLoading(false);
+                setIsDailyCardFlipped(false);
                 return;
             }
 
@@ -109,6 +118,8 @@ const HomeView: React.FC = () => {
 
             if (!drawnCard) {
                 showToast("Could not draw a card from the deck.");
+                setIsDailyDrawLoading(false);
+                setIsDailyCardFlipped(false);
                 return;
             }
             
@@ -116,14 +127,13 @@ const HomeView: React.FC = () => {
                 card: drawnCard,
                 isReversed: settings.includeReversals && Math.random() > 0.5,
             }];
-            setIsDailyDrawModalOpen(false);
             startReading(cards, dailySpread, "Card of the Day");
         } catch (e) {
             showToast("An error occurred while preparing the draw.");
-        } finally {
             setIsDailyDrawLoading(false);
+            setIsDailyCardFlipped(false);
         }
-    };
+    }, [deck, settings.includeReversals, showToast, startReading]);
 
     const handleSaveToJournal = useCallback((impression: string, tags: string[]) => {
         if (!interpretation || !spread) return;
@@ -150,9 +160,10 @@ const HomeView: React.FC = () => {
         resetReading();
     }, [resetReading]);
 
-    const handleViewJournalEntry = (entryId: string) => {
+    const handleViewJournalEntry = useCallback((entryId: string) => {
         setJournalFilter({ type: 'id', value: entryId });
-    };
+        window.location.hash = 'journal';
+    }, [setJournalFilter]);
 
     const getLoadingMessage = () => {
         if (phase === 'generatingImages') {
@@ -162,57 +173,35 @@ const HomeView: React.FC = () => {
     };
 
     const renderDashboard = () => (
-        <div className="space-y-8 animate-fade-in text-center font-serif">
-            <div className="bg-surface/70 rounded-card p-6 card-border">
-                <h2 className="text-2xl font-bold text-accent mb-2">Welcome, Seeker</h2>
-                <p className="text-sub max-w-md mx-auto">Center your thoughts, take a breath, and let the cards offer their wisdom.</p>
+        <div className="space-y-8 animate-fade-in font-serif">
+            {/* Section 1: Journey Visualizer or Welcome */}
+            {entries.length > 0 ? (
+                <div className="bg-surface/70 backdrop-blur-lg rounded-card p-6 card-border text-center">
+                    <h2 className="text-2xl font-bold text-accent mb-2">Your Journey's Reflection</h2>
+                    <p className="text-sub max-w-md mx-auto mb-4">This is a living reflection of your readings. The size and brightness of each orb represent its presence in your journal.</p>
+                    <JourneyVisualizer entries={entries} />
+                </div>
+            ) : (
+                <div className="bg-surface/70 backdrop-blur-lg rounded-card p-6 card-border text-center">
+                    <h2 className="text-2xl font-bold text-accent mb-2">Welcome, Seeker</h2>
+                    <p className="text-sub max-w-md mx-auto">Center your thoughts, take a breath, and let the cards offer their wisdom.</p>
+                </div>
+            )}
+            
+            {/* Section 2: Daily Ritual */}
+            <div className="bg-surface/70 backdrop-blur-lg rounded-card p-6 card-border shadow-main min-h-[420px] flex flex-col justify-center text-center">
+                <InteractiveDailyCard 
+                    dailyDraw={dailyDrawForToday}
+                    onDraw={handleStartDailyDraw}
+                    onViewInJournal={handleViewJournalEntry}
+                    isFlipping={isDailyCardFlipped}
+                    isLoading={isDailyDrawLoading}
+                />
             </div>
             
-            <div className="bg-surface/70 rounded-card p-6 card-border shadow-main min-h-[230px] flex flex-col justify-center">
-                {dailyDrawForToday ? (
-                    <div className="animate-fade-in">
-                        <h3 className="text-xl font-bold text-text mb-4">Your Card of the Day</h3>
-                        <div className="flex flex-col md:flex-row items-center gap-6 text-left">
-                            <img 
-                                src={dailyDrawForToday.drawnCards[0].imageUrl || dailyDrawForToday.drawnCards[0].card.imageUrl} 
-                                alt={dailyDrawForToday.drawnCards[0].card.name} 
-                                className={`w-32 h-auto rounded-lg shadow-lg flex-shrink-0 ${dailyDrawForToday.drawnCards[0].isReversed ? 'transform rotate-180' : ''}`} 
-                            />
-                            <div>
-                                <p className="text-lg font-bold text-accent">{dailyDrawForToday.drawnCards[0].card.name}</p>
-                                <p className="text-sub italic text-sm mb-2">{dailyDrawForToday.interpretation.cards[0].meaning}</p>
-                                <a 
-                                    href="#journal" 
-                                    onClick={() => handleViewJournalEntry(dailyDrawForToday.id)}
-                                    className="font-sans text-accent underline text-sm hover:text-accent/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded">
-                                    View full reading in Journal
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="animate-fade-in">
-                        <h3 className="text-xl font-bold text-text mb-4">Daily Ritual</h3>
-                        <p className="text-sub mb-6">Begin with a single card for focus and guidance throughout your day.</p>
-                        <button 
-                            onClick={() => setIsDailyDrawModalOpen(true)} 
-                            className="w-full max-w-xs mx-auto bg-accent text-accent-dark font-bold py-3 px-8 rounded-ui transition-all duration-300 text-lg shadow-lg hover:shadow-glow hover:scale-105 transform"
-                        >
-                            Draw Card of the Day
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            <div className="bg-surface/70 rounded-card p-6 card-border">
-                <h3 className="text-xl font-bold text-text mb-4">Deeper Inquiry</h3>
-                <p className="text-sub mb-6">When you seek more detailed insight, choose a spread that fits your question.</p>
-                <button 
-                    onClick={() => setIsCustomReadingModalOpen(true)}
-                    className="w-full max-w-xs mx-auto bg-border text-text font-bold py-3 px-8 rounded-ui hover:bg-border/70 transition-colors"
-                >
-                    Start a New Reading
-                </button>
+            {/* Section 3: Deeper Inquiry */}
+            <div className="bg-surface/70 backdrop-blur-lg rounded-card p-6 card-border shadow-main h-full">
+                <DeckCta onClick={() => setIsCustomReadingModalOpen(true)} />
             </div>
         </div>
     );
@@ -228,7 +217,7 @@ const HomeView: React.FC = () => {
                 );
             case 'imageError':
                  return (
-                    <div className="bg-surface rounded-card shadow-main p-6 card-border animate-fade-in text-center font-serif">
+                    <div className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border animate-fade-in text-center font-serif">
                         <h3 className="text-2xl font-bold text-red-400 mb-4">Art Generation Failed</h3>
                         <p className="text-sub mb-2 max-w-md mx-auto">{error || "An unexpected error occurred."}</p>
                         <p className="text-sub mb-6">You can try again, or continue with the default card art.</p>
@@ -240,7 +229,7 @@ const HomeView: React.FC = () => {
                 );
             case 'interpretationError':
                 return (
-                   <div className="bg-surface rounded-card shadow-main p-6 card-border animate-fade-in text-center font-serif">
+                   <div className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border animate-fade-in text-center font-serif">
                        <h3 className="text-2xl font-bold text-red-400 mb-4">Interpretation Failed</h3>
                        <p className="text-sub mb-6 max-w-md mx-auto">{error || "An unexpected error occurred while interpreting the cards."}</p>
                        <div className="flex flex-col sm:flex-row gap-4 justify-center font-sans">
@@ -269,13 +258,6 @@ const HomeView: React.FC = () => {
     return (
         <div className="space-y-8 font-sans">
             {renderContent()}
-
-            <DailyDrawModal
-                isOpen={isDailyDrawModalOpen}
-                onClose={() => setIsDailyDrawModalOpen(false)}
-                onDraw={handleStartDailyDraw}
-                isLoading={isDailyDrawLoading}
-            />
             
             <CustomReadingFlow
                 isOpen={isCustomReadingModalOpen}

@@ -19,7 +19,7 @@ const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, onEdit, onDe
     }, [entry.id, onDelete]);
 
     return (
-        <article className="bg-surface rounded-card shadow-main p-6 card-border animate-fade-in">
+        <article className="bg-surface/70 backdrop-blur-lg rounded-card shadow-main p-6 card-border animate-fade-in">
             <header className="border-b border-border pb-3 mb-4">
                 <div className="flex justify-between items-start">
                     <div>
@@ -45,14 +45,23 @@ const JournalEntryCard: React.FC<JournalEntryCardProps> = ({ entry, onEdit, onDe
                         </summary>
                         <div className="mt-2 pl-4 border-l-2 border-accent/20 space-y-3">
                             <h4 className="font-semibold text-accent/80">Overall Message</h4>
-                            <p className="text-sub text-sm whitespace-pre-wrap">{entry.interpretation.overall}</p>
-                            <h4 className="font-semibold text-accent/80">Card Meanings</h4>
-                            <ul className="space-y-2">
+                            <div className="text-sub text-sm space-y-1 pl-2">
+                                <p><strong>Outer:</strong> {entry.interpretation.overall.outer}</p>
+                                <p><strong>Inner:</strong> {entry.interpretation.overall.inner}</p>
+                                <p><strong>Whispers:</strong> {entry.interpretation.overall.whispers}</p>
+                            </div>
+                            <h4 className="font-semibold text-accent/80 pt-2">Card Meanings</h4>
+                            <ul className="space-y-3">
                                 {entry.interpretation.cards?.map((cardInterp, index) => {
                                     const position = entry.spread?.positions?.[index];
                                     return (
-                                        <li key={index} className="text-sub text-sm">
-                                            <strong>{position?.title || `Position ${index + 1}`} ({cardInterp.cardName}):</strong> {cardInterp.meaning}
+                                        <li key={index} className="text-sub text-sm space-y-1">
+                                            <strong>{position?.title || `Position ${index + 1}`} ({cardInterp.cardName}):</strong>
+                                            <div className="pl-2 space-y-1">
+                                              <p><strong>Outer:</strong> {cardInterp.outer}</p>
+                                              <p><strong>Inner:</strong> {cardInterp.inner}</p>
+                                              <p><strong>Whispers:</strong> {cardInterp.whispers}</p>
+                                            </div>
                                         </li>
                                     );
                                 })}
