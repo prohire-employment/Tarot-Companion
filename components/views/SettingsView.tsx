@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useState, useEffect } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useJournalStore } from '../../store/journalStore';
